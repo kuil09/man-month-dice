@@ -36,7 +36,7 @@ let isRolling = false;
 let dice3D = null;
 try {
   dice3D = new DiceTray3D(diceTray);
-  diceTray.dataset.renderer = 'three';
+  window.__MAN_MONTH_DICE_DEBUG__ = () => dice3D?.debugState() ?? null;
 } catch (error) {
   console.warn('Three.js renderer unavailable; using accessible 2D fallback.', error);
   diceTray.dataset.renderer = 'fallback';
@@ -77,21 +77,38 @@ parallelism.addEventListener('input', () => {
 rollButton.addEventListener('click', async () => {
   if (isRolling) return;
   const pool = buildPool(state.factors);
-  const roll = rollPool(pool);
+  let roll;
   isRolling = true;
+  delete diceTray.dataset.lastRoll;
   setEstimationControlsDisabled(true);
   rollButton.textContent = 'ROLLING…';
   rollTotal.textContent = 'ROLLING THE UNCERTAINTY';
-  rollDetail.textContent = '3D 다이스가 가능한 프로젝트 현실 하나를 샘플링하고 있다.';
+  rollDetail.textContent = '중력, 충돌, 마찰과 각운동량이 가능한 프로젝트 현실 하나를 결정하고 있다.';
 
   try {
     if (dice3D) {
-      dice3D.announce(`${pool.length}개의 3D 다이스를 굴리는 중.`);
-      await dice3D.roll(roll.items);
+      dice3D.announce(`${pool.length}개의 물리 다이스를 굴리는 중.`);
+      roll = await dice3D.roll(pool);
     } else {
+      roll = rollPool(pool);
       renderFallbackRoll(roll);
       await delay(window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 360);
     }
+  } catch (error) {
+    console.error('Physical dice roll failed; using the accessible fallback.', error);
+    dice3D?.dispose();
+    dice3D = null;
+    window.__MAN_MONTH_DICE_DEBUG__ = () => null;
+    diceTray.dataset.renderer = 'fallback';
+    diceTray.dataset.physics = 'fallback';
+    diceTray.classList.remove('has-webgl', 'is-rolling', 'is-empty');
+    diceTray.classList.add('is-fallback');
+    roll = rollPool(pool);
+    renderFallbackRoll(roll);
+    await delay(window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 360);
+  }
+
+  try {
     state.history.unshift({
       id: crypto.randomUUID?.() ?? String(Date.now()),
       questName: state.questName.trim() || 'UNTITLED QUEST',

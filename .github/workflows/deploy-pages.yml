@@ -37,7 +37,7 @@ jobs:
           rm -rf _site
           mkdir -p _site/vendor
           cp index.html styles.css app.js dice3d.js .nojekyll _site/
-          cp vendor/three.module.min.js vendor/three.core.min.js vendor/THREE-LICENSE.txt vendor/three-version.json _site/vendor/
+          cp vendor/* _site/vendor/
 
       - name: Configure Pages
         id: configure
