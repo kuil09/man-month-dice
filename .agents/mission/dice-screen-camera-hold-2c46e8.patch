@@ -1,0 +1,16 @@
+diff --git a/dice3d.js b/dice3d.js
+index 604b3be..262106d 100644
+--- a/dice3d.js
++++ b/dice3d.js
+@@ -686,7 +686,10 @@ export class DiceTray3D {
+       else nearDistance = distance;
+     }
+ 
+-    this.cameraFitDistance = farDistance * 1.025;
++    const requiredDistance = farDistance * 1.025;
++    this.cameraFitDistance = this.container.classList.contains('is-rolling')
++      ? Math.max(this.cameraFitDistance || requiredDistance, requiredDistance)
++      : requiredDistance;
+     this.camera.position.copy(this.cameraTarget).addScaledVector(CAMERA_DIRECTION, this.cameraFitDistance);
+     this.camera.lookAt(this.cameraTarget);
+     this.camera.updateMatrixWorld(true);
