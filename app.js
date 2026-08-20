@@ -1,6 +1,7 @@
 import { DiceTray3D } from './dice3d.js';
 
 const STORAGE_KEY = 'man-month-dice:poc:v1';
+const MAX_PHYSICAL_ROLL_MS = 7500;
 const FACTORS = [
   { key: 'novelty', label: '기술/도메인 새로움', low: '익숙함', high: '처음 해봄' },
   { key: 'integration', label: '연동 범위', low: '고립됨', high: '여러 시스템' },
@@ -88,7 +89,11 @@ rollButton.addEventListener('click', async () => {
   try {
     if (dice3D) {
       dice3D.announce(`${pool.length}개의 물리 다이스를 굴리는 중.`);
-      roll = await dice3D.roll(pool);
+      roll = await withTimeout(
+        dice3D.roll(pool),
+        MAX_PHYSICAL_ROLL_MS,
+        'Physical dice roll exceeded its time budget.',
+      );
     } else {
       roll = rollPool(pool);
       renderFallbackRoll(roll);
@@ -288,6 +293,13 @@ function secureRandom() {
   const values = new Uint32Array(1);
   crypto.getRandomValues(values);
   return values[0] / 4294967296;
+}
+function withTimeout(promise, milliseconds, message) {
+  let timer = 0;
+  const timeout = new Promise((_, reject) => {
+    timer = window.setTimeout(() => reject(new Error(message)), milliseconds);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
 }
 function delay(milliseconds) { return new Promise((resolve) => window.setTimeout(resolve, milliseconds)); }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
