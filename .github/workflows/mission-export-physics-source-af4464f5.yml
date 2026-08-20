@@ -1,0 +1,56 @@
+name: mission-export-physics-source-af4464f5
+
+on:
+  push:
+    branches: [mission/physics-source-af4464f5]
+    paths:
+      - .github/workflows/mission-export-physics-source-af4464f5.yml
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v6
+        with:
+          ref: 4d1f52f18b9ccaf8f3418ed91b5ae8f4b0818936
+          path: source
+
+      - name: Pack source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --exclude=.git -C source -czf man-month-dice-physics-source-af4464f5.tgz .
+          sha256sum man-month-dice-physics-source-af4464f5.tgz > man-month-dice-physics-source-af4464f5.sha256
+
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: man-month-dice-physics-source-af4464f5
+          path: |
+            man-month-dice-physics-source-af4464f5.tgz
+            man-month-dice-physics-source-af4464f5.sha256
+          retention-days: 1
+
+      - name: Record mission result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/mission.json <<EOF
+          {
+            "source_commit": "4d1f52f18b9ccaf8f3418ed91b5ae8f4b0818936",
+            "run_id": "${GITHUB_RUN_ID}",
+            "run_attempt": "${GITHUB_RUN_ATTEMPT}",
+            "artifact": "man-month-dice-physics-source-af4464f5"
+          }
+          EOF
+          content="$(base64 -w0 /tmp/mission.json)"
+          gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/mission-physics-source-af4464f5.json" \
+            -f message="chore: record exact source export [skip ci]" \
+            -f content="$content" \
+            -f branch="mission/physics-source-af4464f5" >/dev/null
