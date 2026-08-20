@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#141510" />
   <title>Man-Month Dice</title>
   <meta name="description" content="기간을 맞히지 말고, 불확실성을 굴려라." />
   <link rel="stylesheet" href="./styles.css" />
@@ -51,7 +52,11 @@
           <span class="rule">02</span>
         </div>
 
-        <div id="diceTray" class="dice-tray" aria-live="polite"></div>
+        <div id="diceTray" class="dice-tray" aria-describedby="diceNarration">
+          <span class="render-badge" aria-hidden="true">THREE.JS / WEBGL</span>
+          <span class="empty-stage-message" aria-hidden="true">NO DICE<br>모든 위험을 0으로 낮췄다.</span>
+        </div>
+        <p id="diceNarration" class="sr-only" aria-live="polite"></p>
 
         <button id="rollButton" class="roll-button" type="button">ROLL THE ESTIMATE</button>
 
@@ -93,6 +98,6 @@
     </footer>
   </main>
 
-  <script src="./app.js" defer></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

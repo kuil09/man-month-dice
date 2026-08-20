@@ -7,6 +7,8 @@ on:
       - index.html
       - styles.css
       - app.js
+      - dice3d.js
+      - vendor/**
       - .nojekyll
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
@@ -33,8 +35,9 @@ jobs:
       - name: Prepare static site
         run: |
           rm -rf _site
-          mkdir _site
-          cp index.html styles.css app.js .nojekyll _site/
+          mkdir -p _site/vendor
+          cp index.html styles.css app.js dice3d.js .nojekyll _site/
+          cp vendor/three.module.min.js vendor/three.core.min.js vendor/THREE-LICENSE.txt vendor/three-version.json _site/vendor/
 
       - name: Configure Pages
         id: configure

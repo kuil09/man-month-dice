@@ -9,11 +9,13 @@ A local-first software-estimation toy that models uncertainty as a TRPG dice poo
 - Five risk sliders create a dice pool from d4 through exploding d12.
 - P50/P80/P95 are approximated in-browser with Monte Carlo simulation.
 - A roll samples one possible project outcome; maximum d12 results explode and roll again.
+- Three.js renders d4/d6/d8/d12 polyhedra in WebGL with a procedural roll-and-settle animation.
+- Three.js `0.185.1` browser modules (`three.module.min.js` and `three.core.min.js`) are vendored in `vendor/`; the deployed app has no CDN runtime dependency.
 - Adding parallelism does not divide the effort roll. It is displayed as an independent coordination constraint.
 
 ## Run locally
 
-Serve this directory with any static file server, for example:
+Serve this directory with any static file server. ES modules cannot be opened reliably from `file://`, so use HTTP, for example:
 
 ```bash
 python3 -m http.server 8080

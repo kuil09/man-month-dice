@@ -1,5 +1,6 @@
-const STORAGE_KEY = 'man-month-dice:poc:v1';
+import { DiceTray3D } from './dice3d.js';
 
+const STORAGE_KEY = 'man-month-dice:poc:v1';
 const FACTORS = [
   { key: 'novelty', label: '기술/도메인 새로움', low: '익숙함', high: '처음 해봄' },
   { key: 'integration', label: '연동 범위', low: '고립됨', high: '여러 시스템' },
@@ -7,7 +8,6 @@ const FACTORS = [
   { key: 'verification', label: '검증 비용', low: '즉시 확인', high: '비싸고 느림' },
   { key: 'reversibility', label: '실패의 가역성', low: '쉽게 되돌림', high: '되돌리기 어려움' },
 ];
-
 const DEFAULT_STATE = {
   questName: '',
   parallelism: 2,
@@ -29,10 +29,22 @@ const p80 = document.querySelector('#p80');
 const p95 = document.querySelector('#p95');
 const rollTotal = document.querySelector('#rollTotal');
 const rollDetail = document.querySelector('#rollDetail');
+const rollButton = document.querySelector('#rollButton');
+const resetButton = document.querySelector('#resetButton');
+
+let isRolling = false;
+let dice3D = null;
+try {
+  dice3D = new DiceTray3D(diceTray);
+  diceTray.dataset.renderer = 'three';
+} catch (error) {
+  console.warn('Three.js renderer unavailable; using accessible 2D fallback.', error);
+  diceTray.dataset.renderer = 'fallback';
+  diceTray.classList.add('is-fallback');
+}
 
 questName.value = state.questName;
 parallelism.value = state.parallelism;
-
 for (const factor of FACTORS) {
   const wrapper = document.createElement('label');
   wrapper.className = 'factor';
@@ -46,88 +58,123 @@ for (const factor of FACTORS) {
 
 factorControls.addEventListener('input', (event) => {
   const input = event.target.closest('[data-factor]');
-  if (!input) return;
+  if (!input || isRolling) return;
   state.factors[input.dataset.factor] = Number(input.value);
   input.parentElement.querySelector('[data-value]').textContent = `${input.value}/4`;
   persistAndRender();
 });
-
 questName.addEventListener('input', () => {
   state.questName = questName.value;
   saveState();
 });
-
 parallelism.addEventListener('input', () => {
+  if (isRolling) return;
   state.parallelism = clamp(Number(parallelism.value) || 1, 1, 12);
   parallelism.value = state.parallelism;
   persistAndRender();
 });
 
-document.querySelector('#rollButton').addEventListener('click', () => {
+rollButton.addEventListener('click', async () => {
+  if (isRolling) return;
   const pool = buildPool(state.factors);
   const roll = rollPool(pool);
-  state.history.unshift({
-    id: crypto.randomUUID?.() ?? String(Date.now()),
-    questName: state.questName.trim() || 'UNTITLED QUEST',
-    total: roll.total,
-    detail: roll.detail,
-    at: Date.now(),
-  });
-  state.history = state.history.slice(0, 30);
-  saveState();
-  renderRoll(roll);
-  renderHistory();
+  isRolling = true;
+  setEstimationControlsDisabled(true);
+  rollButton.textContent = 'ROLLING…';
+  rollTotal.textContent = 'ROLLING THE UNCERTAINTY';
+  rollDetail.textContent = '3D 다이스가 가능한 프로젝트 현실 하나를 샘플링하고 있다.';
+
+  try {
+    if (dice3D) {
+      dice3D.announce(`${pool.length}개의 3D 다이스를 굴리는 중.`);
+      await dice3D.roll(roll.items);
+    } else {
+      renderFallbackRoll(roll);
+      await delay(window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 360);
+    }
+    state.history.unshift({
+      id: crypto.randomUUID?.() ?? String(Date.now()),
+      questName: state.questName.trim() || 'UNTITLED QUEST',
+      total: roll.total,
+      detail: roll.detail,
+      at: Date.now(),
+    });
+    state.history = state.history.slice(0, 30);
+    saveState();
+    renderRollSummary(roll);
+    renderHistory();
+  } finally {
+    isRolling = false;
+    setEstimationControlsDisabled(false);
+    rollButton.textContent = 'ROLL THE ESTIMATE';
+  }
 });
 
-document.querySelector('#resetButton').addEventListener('click', () => {
+resetButton.addEventListener('click', () => {
+  if (isRolling) return;
   localStorage.removeItem(STORAGE_KEY);
   location.reload();
+});
+window.addEventListener('pagehide', (event) => {
+  if (!event.persisted) dice3D?.dispose();
 });
 
 function persistAndRender() {
   saveState();
   renderModel();
 }
-
 function renderModel() {
   const pool = buildPool(state.factors);
   diceNotation.textContent = notation(pool);
   poolExplanation.textContent = `${pool.length}개의 불확실성 다이스 · 병렬 처리 슬롯 ${state.parallelism}. 인원 수는 다이스 값을 나누지 않는다.`;
-  renderEmptyTray(pool);
+  renderPool(pool);
   renderRiskLedger();
-
   const samples = simulate(pool, 12000);
   p50.textContent = percentile(samples, .50);
   p80.textContent = percentile(samples, .80);
   p95.textContent = `${percentile(samples, .95)}+`;
 }
-
-function renderEmptyTray(pool) {
+function renderPool(pool) {
+  const narration = pool.length
+    ? `${notation(pool)}. 아직 굴리지 않은 3D 다이스 ${pool.length}개.`
+    : '모든 위험을 0으로 낮춰 굴릴 다이스가 없다.';
+  if (dice3D) {
+    dice3D.showPool(pool);
+    dice3D.announce(narration);
+    return;
+  }
+  renderFallbackPool(pool);
+  const narrationElement = document.querySelector('#diceNarration');
+  if (narrationElement) narrationElement.textContent = narration;
+}
+function renderFallbackPool(pool) {
   diceTray.innerHTML = '';
   if (!pool.length) {
     diceTray.innerHTML = '<div class="empty-tray">NO DICE<br>모든 위험을 0으로 낮췄다.</div>';
     return;
   }
   for (const die of pool) {
-    const el = document.createElement('div');
-    el.className = `die d${die.sides}`;
-    el.innerHTML = `<span class="value">?</span><span class="kind">D${die.sides}${die.explodes ? '!' : ''}</span>`;
-    diceTray.append(el);
+    const element = document.createElement('div');
+    element.className = `die d${die.sides}`;
+    element.innerHTML = `<span class="value">?</span><span class="kind">D${die.sides}${die.explodes ? '!' : ''}</span>`;
+    diceTray.append(element);
   }
 }
-
-function renderRoll(roll) {
+function renderFallbackRoll(roll) {
   diceTray.innerHTML = '';
   for (const item of roll.items) {
-    const el = document.createElement('div');
-    el.className = `die d${item.sides}${item.exploded ? ' exploded' : ''}`;
-    el.innerHTML = `<span class="value">${item.total}</span><span class="kind">D${item.sides}${item.exploded ? '!' : ''}</span>`;
-    diceTray.append(el);
+    const element = document.createElement('div');
+    element.className = `die d${item.sides}${item.exploded ? ' exploded' : ''}`;
+    element.innerHTML = `<span class="value">${item.total}</span><span class="kind">D${item.sides}${item.exploded ? '!' : ''}</span>`;
+    diceTray.append(element);
   }
+}
+function renderRollSummary(roll) {
   rollTotal.textContent = `${roll.total} EFFORT POINTS`;
   rollDetail.textContent = roll.detail;
+  diceTray.dataset.lastRoll = String(roll.total);
+  dice3D?.announce(`결과 ${roll.total} effort points. ${roll.detail}`);
 }
-
 function renderRiskLedger() {
   riskLedger.innerHTML = '';
   for (const factor of FACTORS) {
@@ -142,7 +189,6 @@ function renderRiskLedger() {
     riskLedger.append(row);
   }
 }
-
 function renderHistory() {
   rollHistory.innerHTML = '';
   if (!state.history.length) {
@@ -150,13 +196,18 @@ function renderHistory() {
     return;
   }
   for (const item of state.history) {
-    const li = document.createElement('li');
+    const listItem = document.createElement('li');
     const date = new Date(item.at);
-    li.innerHTML = `<strong>${escapeHtml(item.questName)} · ${item.total}</strong><time>${date.toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}</time>`;
-    rollHistory.append(li);
+    listItem.innerHTML = `<strong>${escapeHtml(item.questName)} · ${item.total}</strong><time>${date.toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })}</time>`;
+    rollHistory.append(listItem);
   }
 }
-
+function setEstimationControlsDisabled(disabled) {
+  rollButton.disabled = disabled;
+  resetButton.disabled = disabled;
+  parallelism.disabled = disabled;
+  for (const input of factorControls.querySelectorAll('input')) input.disabled = disabled;
+}
 function buildPool(factors) {
   const pool = [];
   for (const factor of FACTORS) {
@@ -170,7 +221,6 @@ function buildPool(factors) {
   }
   return pool;
 }
-
 function notation(pool) {
   if (!pool.length) return '0';
   const grouped = new Map();
@@ -183,7 +233,6 @@ function notation(pool) {
     return `${count > 1 ? count : ''}d${sides}${explodes === 'true' ? '!' : ''}`;
   }).join(' + ');
 }
-
 function rollPool(pool, random = secureRandom) {
   const items = [];
   let total = 0;
@@ -192,15 +241,14 @@ function rollPool(pool, random = secureRandom) {
     total += rolled.total;
     items.push({ ...die, ...rolled });
   }
-  const detail = items.map(item => item.parts.join(' + ')).join('  |  ') || '0';
+  const detail = items.map((item) => item.parts.join(' + ')).join('  |  ') || '0';
   return { total, items, detail };
 }
-
 function rollDie(die, random) {
   const parts = [];
   let exploded = false;
   let total = 0;
-  for (let depth = 0; depth < 6; depth++) {
+  for (let depth = 0; depth < 6; depth += 1) {
     const value = Math.floor(random() * die.sides) + 1;
     parts.push(value);
     total += value;
@@ -209,32 +257,35 @@ function rollDie(die, random) {
   }
   return { total, parts, exploded };
 }
-
 function simulate(pool, count) {
   const samples = new Array(count);
-  for (let i = 0; i < count; i++) samples[i] = rollPool(pool, Math.random).total;
+  for (let index = 0; index < count; index += 1) samples[index] = rollPool(pool, Math.random).total;
   samples.sort((a, b) => a - b);
   return samples;
 }
-
-function percentile(sorted, p) {
+function percentile(sorted, probability) {
   if (!sorted.length) return 0;
-  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * probability))];
 }
-
 function secureRandom() {
   const values = new Uint32Array(1);
   crypto.getRandomValues(values);
   return values[0] / 4294967296;
 }
-
+function delay(milliseconds) { return new Promise((resolve) => window.setTimeout(resolve, milliseconds)); }
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-function escapeHtml(value) { return value.replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch])); }
+function escapeHtml(value) {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+  })[character]);
+}
 function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return saved ? { ...structuredClone(DEFAULT_STATE), ...saved, factors: { ...DEFAULT_STATE.factors, ...saved.factors } } : structuredClone(DEFAULT_STATE);
+    return saved
+      ? { ...structuredClone(DEFAULT_STATE), ...saved, factors: { ...DEFAULT_STATE.factors, ...saved.factors } }
+      : structuredClone(DEFAULT_STATE);
   } catch {
     return structuredClone(DEFAULT_STATE);
   }
