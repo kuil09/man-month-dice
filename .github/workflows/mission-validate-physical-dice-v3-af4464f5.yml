@@ -77,12 +77,13 @@ jobs:
           cd /tmp/physical-dice-browser
           npm init -y >/dev/null
           npm install --no-save --no-package-lock playwright-core@1.55.0 >/dev/null
+          cp "$GITHUB_WORKSPACE/smoke/physical-dice-smoke-af4464f5.mjs" smoke.mjs
           python3 -m http.server 4173 --bind 127.0.0.1 --directory "$GITHUB_WORKSPACE/_site" >/tmp/physical-dice-http.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           export CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)"
           test -n "$CHROME_BIN"
-          node "$GITHUB_WORKSPACE/smoke/physical-dice-smoke-af4464f5.mjs"
+          node smoke.mjs
           test -s "$SCREENSHOT_PATH"
           test -s "$RESULT_PATH"
 
