@@ -13,9 +13,16 @@ const DIE_COLORS = {
 const TRAY = {
   halfWidth: 5.2,
   halfDepth: 3.25,
-  wallHeight: 2.4,
+  wallHeight: 6.2,
   wallThickness: 0.24,
+  maxBodyHeight: 5.8,
 };
+const CAMERA_DIRECTION = new THREE.Vector3(0, 0.59, 1).normalize();
+const CAMERA_TARGET = new THREE.Vector3(0, 0.72, 0);
+const CAMERA_MIN_DISTANCE = 6;
+const CAMERA_MAX_DISTANCE = 48;
+const CAMERA_WORLD_MARGIN = 0.26;
+const VIEWPORT_LIMIT = 0.985;
 const FIXED_TIME_STEP = 1 / 60;
 const MAX_SUB_STEPS = 5;
 const MAX_ROLL_TIME_MS = 9000;
@@ -42,15 +49,21 @@ export class DiceTray3D {
     this.rollState = null;
     this.rollGeneration = 0;
     this.physicsSteps = 0;
+    this.containmentCorrections = 0;
+    this.cameraFitDistance = 0;
     this.lastFrame = performance.now();
     this.disposed = false;
     this.frameHandle = 0;
     this.stageResources = [];
+    this.fitBounds = new THREE.Box3();
+    this.fitDieBounds = new THREE.Box3();
+    this.fitCorners = Array.from({ length: 8 }, () => new THREE.Vector3());
+    this.fitProjection = new THREE.Vector3();
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(37, 1, 0.1, 80);
-    this.camera.position.set(0, 6.9, 10.8);
-    this.cameraTarget = new THREE.Vector3(0, 0.55, 0);
+    this.camera.position.copy(CAMERA_TARGET).addScaledVector(CAMERA_DIRECTION, 14);
+    this.cameraTarget = CAMERA_TARGET.clone();
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -88,6 +101,7 @@ export class DiceTray3D {
 
     if (!pool.length) {
       this.container.classList.add('is-empty');
+      this.#fitCameraToVisibleBounds();
       this.renderer.render(this.scene, this.camera);
       return;
     }
@@ -106,7 +120,7 @@ export class DiceTray3D {
       this.dice.push(entry);
     });
     this.#updateDiagnostics();
-    this.#frameDice(this.dice.length);
+    this.#fitCameraToVisibleBounds();
   }
 
   async roll(pool) {
@@ -114,6 +128,8 @@ export class DiceTray3D {
     this.#clearDice();
     const generation = ++this.rollGeneration;
     this.physicsSteps = 0;
+    this.containmentCorrections = 0;
+    this.container.dataset.containmentCorrections = '0';
     this.container.classList.remove('is-empty');
     this.container.classList.add('is-rolling');
 
@@ -177,23 +193,33 @@ export class DiceTray3D {
     this.#updateDiagnostics();
     const total = results.reduce((sum, item) => sum + item.total, 0);
     const detail = results.map((item) => item.parts.join(' + ')).join('  |  ') || '0';
-    this.#frameDice(this.dice.length);
+    this.#fitCameraToVisibleBounds();
     return { total, items: results, detail };
   }
 
   debugState() {
-    const dice = this.dice.map((entry) => ({
-      sides: entry.item.sides,
-      numberedFaces: entry.materials.length,
-      numeralsInSurfaceMaterial: entry.materials.every((material) => Boolean(material.map && material.bumpMap)),
-      separateNumberObjects: 0,
-      hasBody: Boolean(entry.body),
-      bodyType: entry.body ? entry.body.type : null,
-      sleeping: entry.body ? entry.body.sleepState === CANNON.Body.SLEEPING : null,
-      speed: entry.body ? Number(entry.body.velocity.length().toFixed(4)) : 0,
-      angularSpeed: entry.body ? Number(entry.body.angularVelocity.length().toFixed(4)) : 0,
-      upwardFace: entry.body ? readTopFace(entry) : null,
-    }));
+    const dice = this.dice.map((entry) => {
+      const screenBounds = projectEntryBounds(entry, this.camera);
+      return {
+        sides: entry.item.sides,
+        numberedFaces: entry.materials.length,
+        numeralsInSurfaceMaterial: entry.materials.every((material) => Boolean(material.map && material.bumpMap)),
+        separateNumberObjects: 0,
+        hasBody: Boolean(entry.body),
+        bodyType: entry.body ? entry.body.type : null,
+        sleeping: entry.body ? entry.body.sleepState === CANNON.Body.SLEEPING : null,
+        speed: entry.body ? Number(entry.body.velocity.length().toFixed(4)) : 0,
+        angularSpeed: entry.body ? Number(entry.body.angularVelocity.length().toFixed(4)) : 0,
+        upwardFace: entry.body ? readTopFace(entry) : null,
+        position: {
+          x: Number(entry.group.position.x.toFixed(4)),
+          y: Number(entry.group.position.y.toFixed(4)),
+          z: Number(entry.group.position.z.toFixed(4)),
+        },
+        screenBounds,
+        insideViewport: screenBounds.inside,
+      };
+    });
     return {
       renderer: 'three-cannon',
       physics: this.container.dataset.physics,
@@ -202,6 +228,10 @@ export class DiceTray3D {
       separateNumberObjects: 0,
       physicsBodies: dice.filter((die) => die.hasBody).length,
       physicsSteps: Number(this.container.dataset.physicsSteps || 0),
+      containmentCorrections: this.containmentCorrections,
+      cameraDistance: Number(this.cameraFitDistance.toFixed(4)),
+      allDiceInsideViewport: dice.every((die) => die.insideViewport),
+      maxViewportOverflow: Number(Math.max(0, ...dice.map((die) => die.screenBounds.overflow)).toFixed(6)),
       topFaces: this.container.dataset.lastTopFaces || '',
       dice,
     };
@@ -431,6 +461,7 @@ export class DiceTray3D {
       vertices: model.vertices,
       faces: model.faces,
       shape,
+      radius: Math.max(...model.vertices.map((vertex) => vertex.length())),
       body: null,
       request: null,
     };
@@ -454,22 +485,23 @@ export class DiceTray3D {
       });
       const column = index % columns;
       const row = Math.floor(index / columns);
-      const spawnX = (column - (columns - 1) / 2) * 1.72 + randomBetween(-0.3, 0.3);
+      const spawnX = (column - (columns - 1) / 2) * 1.58 + randomBetween(-0.24, 0.24);
+      const horizontalMargin = entry.radius * 0.92;
       body.position.set(
-        clamp(spawnX, -TRAY.halfWidth + 1, TRAY.halfWidth - 1),
-        4.2 + row * 1.15 + randomBetween(0, 1.25),
-        -2.25 + randomBetween(-0.35, 0.45),
+        clamp(spawnX, -TRAY.halfWidth + horizontalMargin, TRAY.halfWidth - horizontalMargin),
+        3.05 + row * 0.82 + randomBetween(0, 0.72),
+        -1.62 + randomBetween(-0.22, 0.32),
       );
       body.quaternion.copy(randomQuaternion());
       body.velocity.set(
-        randomBetween(-2.4, 2.4),
-        randomBetween(-0.4, 1.3),
-        randomBetween(2.4, 4.8),
+        randomBetween(-1.65, 1.65),
+        randomBetween(-0.35, 0.72),
+        randomBetween(1.75, 3.35),
       );
       body.angularVelocity.set(
-        randomSigned(8.5, 14.5),
-        randomSigned(8.5, 15.5),
-        randomSigned(7.5, 13.5),
+        randomSigned(7.2, 12.6),
+        randomSigned(7.4, 13.2),
+        randomSigned(6.8, 11.9),
       );
       body.wakeUp();
       entry.body = body;
@@ -480,7 +512,7 @@ export class DiceTray3D {
       syncBodyToMesh(entry);
     });
     this.#updateDiagnostics();
-    this.#frameDice(this.dice.length);
+    this.#fitCameraToVisibleBounds();
     return batch;
   }
 
@@ -501,12 +533,14 @@ export class DiceTray3D {
         if (generation !== this.rollGeneration) return;
         this.world.step(FIXED_TIME_STEP);
         this.physicsSteps += 1;
+        this.#containBodies(batch);
         if (bodiesAreQuiet(batch)) stableFrames += 1;
         else stableFrames = 0;
         if (stableFrames > 45) break;
       }
       for (const entry of batch) entry.body.sleep();
       this.#syncAllBodies();
+      this.#fitCameraToVisibleBounds();
       return;
     }
 
@@ -526,7 +560,9 @@ export class DiceTray3D {
     const state = this.rollState;
     this.world.step(FIXED_TIME_STEP, Math.min(delta, 0.1), MAX_SUB_STEPS);
     this.physicsSteps += 1;
+    this.#containBodies(state.batch);
     this.#syncAllBodies();
+    this.#fitCameraToVisibleBounds();
 
     if (bodiesAreQuiet(state.batch)) {
       if (!state.stableSince) state.stableSince = now;
@@ -553,6 +589,7 @@ export class DiceTray3D {
     if (this.rollState !== state) return;
     for (const entry of state.batch) entry.body.sleep();
     this.#syncAllBodies();
+    this.#fitCameraToVisibleBounds();
     this.rollState = null;
     state.resolve();
   }
@@ -585,6 +622,127 @@ export class DiceTray3D {
     }
   }
 
+  #containBodies(entries) {
+    let corrections = 0;
+    for (const entry of entries) {
+      const body = entry.body;
+      if (!body || body.type !== CANNON.Body.DYNAMIC) continue;
+      const inset = Math.max(0.72, entry.radius * 0.86);
+      const maxX = TRAY.halfWidth - inset;
+      const maxZ = TRAY.halfDepth - inset;
+      const maxY = TRAY.maxBodyHeight - entry.radius * 0.28;
+      let corrected = false;
+
+      if (body.position.x > maxX) {
+        body.position.x = maxX;
+        body.velocity.x = -Math.abs(body.velocity.x) * 0.34;
+        corrected = true;
+      } else if (body.position.x < -maxX) {
+        body.position.x = -maxX;
+        body.velocity.x = Math.abs(body.velocity.x) * 0.34;
+        corrected = true;
+      }
+      if (body.position.z > maxZ) {
+        body.position.z = maxZ;
+        body.velocity.z = -Math.abs(body.velocity.z) * 0.34;
+        corrected = true;
+      } else if (body.position.z < -maxZ) {
+        body.position.z = -maxZ;
+        body.velocity.z = Math.abs(body.velocity.z) * 0.34;
+        corrected = true;
+      }
+      if (body.position.y > maxY) {
+        body.position.y = maxY;
+        body.velocity.y = -Math.abs(body.velocity.y) * 0.24;
+        corrected = true;
+      } else if (body.position.y < -entry.radius) {
+        body.position.y = entry.radius;
+        body.velocity.y = Math.abs(body.velocity.y) * 0.2;
+        corrected = true;
+      }
+
+      if (corrected) {
+        body.aabbNeedsUpdate = true;
+        body.wakeUp();
+        corrections += 1;
+      }
+    }
+    this.containmentCorrections += corrections;
+    this.container.dataset.containmentCorrections = String(this.containmentCorrections);
+  }
+
+  #fitCameraToVisibleBounds() {
+    const bounds = this.#collectVisibleBounds();
+    setBoxCorners(bounds, this.fitCorners);
+    const aspect = Math.max(0.1, this.camera.aspect || 1);
+    const safeX = aspect < 0.72 ? 0.74 : aspect < 1.05 ? 0.82 : 0.88;
+    const safeY = aspect < 0.72 ? 0.82 : 0.86;
+    let nearDistance = CAMERA_MIN_DISTANCE;
+    let farDistance = CAMERA_MAX_DISTANCE;
+
+    for (let iteration = 0; iteration < 24; iteration += 1) {
+      const distance = (nearDistance + farDistance) / 2;
+      if (this.#cameraContainsCorners(distance, safeX, safeY)) farDistance = distance;
+      else nearDistance = distance;
+    }
+
+    const requiredDistance = farDistance * 1.025;
+    this.cameraFitDistance = this.container.classList.contains('is-rolling')
+      ? Math.max(this.cameraFitDistance || requiredDistance, requiredDistance)
+      : requiredDistance;
+    this.camera.position.copy(this.cameraTarget).addScaledVector(CAMERA_DIRECTION, this.cameraFitDistance);
+    this.camera.lookAt(this.cameraTarget);
+    this.camera.updateMatrixWorld(true);
+    this.#updateViewportDiagnostics();
+  }
+
+  #collectVisibleBounds() {
+    this.fitBounds.min.set(
+      -(TRAY.halfWidth - 0.58) - CAMERA_WORLD_MARGIN,
+      -0.14,
+      -(TRAY.halfDepth - 0.5) - CAMERA_WORLD_MARGIN,
+    );
+    this.fitBounds.max.set(
+      (TRAY.halfWidth - 0.58) + CAMERA_WORLD_MARGIN,
+      0.42,
+      (TRAY.halfDepth - 0.5) + CAMERA_WORLD_MARGIN,
+    );
+    this.diceRoot.updateWorldMatrix(true, true);
+    for (const entry of this.dice) {
+      if (!entry.geometry.boundingBox) entry.geometry.computeBoundingBox();
+      entry.mesh.updateWorldMatrix(true, false);
+      this.fitDieBounds.copy(entry.geometry.boundingBox).applyMatrix4(entry.mesh.matrixWorld);
+      this.fitBounds.union(this.fitDieBounds);
+    }
+    this.fitBounds.expandByScalar(CAMERA_WORLD_MARGIN);
+    return this.fitBounds;
+  }
+
+  #cameraContainsCorners(distance, safeX, safeY) {
+    this.camera.position.copy(this.cameraTarget).addScaledVector(CAMERA_DIRECTION, distance);
+    this.camera.lookAt(this.cameraTarget);
+    this.camera.updateMatrixWorld(true);
+    for (const corner of this.fitCorners) {
+      this.fitProjection.copy(corner).project(this.camera);
+      if (!Number.isFinite(this.fitProjection.x)
+        || !Number.isFinite(this.fitProjection.y)
+        || Math.abs(this.fitProjection.x) > safeX
+        || Math.abs(this.fitProjection.y) > safeY
+        || this.fitProjection.z < -1
+        || this.fitProjection.z > 1) return false;
+    }
+    return true;
+  }
+
+  #updateViewportDiagnostics() {
+    const projected = this.dice.map((entry) => projectEntryBounds(entry, this.camera));
+    const allInside = projected.every((bounds) => bounds.inside);
+    const overflow = Math.max(0, ...projected.map((bounds) => bounds.overflow));
+    this.container.dataset.diceInsideViewport = String(allInside);
+    this.container.dataset.viewportOverflow = overflow.toFixed(6);
+    this.container.dataset.cameraDistance = this.cameraFitDistance.toFixed(4);
+  }
+
   #abortRoll() {
     this.rollGeneration += 1;
     if (this.rollState) {
@@ -612,21 +770,13 @@ export class DiceTray3D {
     this.#updateDiagnostics();
   }
 
-  #frameDice(count) {
-    const narrow = this.container.clientWidth < 560;
-    const rows = count > 4 ? 2 : 1;
-    this.camera.position.z = narrow ? 12.9 : rows > 1 ? 11.9 : 10.8;
-    this.camera.position.y = narrow ? 7.8 : 6.9;
-    this.camera.lookAt(this.cameraTarget);
-  }
-
   #resize() {
     const width = Math.max(1, this.container.clientWidth);
     const height = Math.max(1, this.container.clientHeight);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
-    this.#frameDice(this.dice.length);
+    this.#fitCameraToVisibleBounds();
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -638,9 +788,6 @@ export class DiceTray3D {
       const delta = Math.min(0.05, Math.max(0, (now - this.lastFrame) / 1000));
       this.lastFrame = now;
       this.pointer.lerp(this.pointerTarget, 0.07);
-      const cameraY = (this.container.clientWidth < 560 ? 7.8 : 6.9) + this.pointer.y * 0.34;
-      this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, this.pointer.x * 0.68, 0.055);
-      this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, cameraY, 0.055);
       this.#updatePhysics(now, delta);
       this.camera.lookAt(this.cameraTarget);
       this.renderer.render(this.scene, this.camera);
@@ -648,6 +795,60 @@ export class DiceTray3D {
     };
     this.frameHandle = requestAnimationFrame(tick);
   }
+}
+
+function setBoxCorners(box, corners) {
+  const { min, max } = box;
+  corners[0].set(min.x, min.y, min.z);
+  corners[1].set(max.x, min.y, min.z);
+  corners[2].set(min.x, max.y, min.z);
+  corners[3].set(max.x, max.y, min.z);
+  corners[4].set(min.x, min.y, max.z);
+  corners[5].set(max.x, min.y, max.z);
+  corners[6].set(min.x, max.y, max.z);
+  corners[7].set(max.x, max.y, max.z);
+}
+
+function projectEntryBounds(entry, camera) {
+  if (!entry.geometry.boundingBox) entry.geometry.computeBoundingBox();
+  entry.mesh.updateWorldMatrix(true, false);
+  const { min, max } = entry.geometry.boundingBox;
+  const corners = [
+    new THREE.Vector3(min.x, min.y, min.z),
+    new THREE.Vector3(max.x, min.y, min.z),
+    new THREE.Vector3(min.x, max.y, min.z),
+    new THREE.Vector3(max.x, max.y, min.z),
+    new THREE.Vector3(min.x, min.y, max.z),
+    new THREE.Vector3(max.x, min.y, max.z),
+    new THREE.Vector3(min.x, max.y, max.z),
+    new THREE.Vector3(max.x, max.y, max.z),
+  ];
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const corner of corners) {
+    corner.applyMatrix4(entry.mesh.matrixWorld).project(camera);
+    minX = Math.min(minX, corner.x);
+    maxX = Math.max(maxX, corner.x);
+    minY = Math.min(minY, corner.y);
+    maxY = Math.max(maxY, corner.y);
+  }
+  const overflow = Math.max(
+    0,
+    -VIEWPORT_LIMIT - minX,
+    maxX - VIEWPORT_LIMIT,
+    -VIEWPORT_LIMIT - minY,
+    maxY - VIEWPORT_LIMIT,
+  );
+  return {
+    minX: Number(minX.toFixed(5)),
+    maxX: Number(maxX.toFixed(5)),
+    minY: Number(minY.toFixed(5)),
+    maxY: Number(maxY.toFixed(5)),
+    overflow: Number(overflow.toFixed(6)),
+    inside: overflow <= 0,
+  };
 }
 
 function createGeometry(sides) {
