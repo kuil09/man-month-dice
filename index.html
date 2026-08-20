@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Man-Month Dice</title>
+  <meta name="description" content="기간을 맞히지 말고, 불확실성을 굴려라." />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div>
+        <p class="eyebrow">SOFTWARE ESTIMATION / TRPG PROTOTYPE</p>
+        <h1>MAN-MONTH DICE</h1>
+        <p class="lede">기간을 맞히지 말고, 불확실성을 굴려라.</p>
+      </div>
+      <button id="resetButton" class="text-button" type="button">RESET LOCAL DATA</button>
+    </header>
+
+    <section class="layout">
+      <aside class="sheet panel">
+        <div class="section-title">
+          <span>QUEST SHEET</span>
+          <span class="rule">01</span>
+        </div>
+
+        <label class="field">
+          <span>무엇을 만들고 있나?</span>
+          <input id="questName" type="text" maxlength="120" placeholder="예: 결제 재시도 메커니즘" />
+        </label>
+
+        <div id="factorControls" class="factors"></div>
+
+        <label class="field compact-field">
+          <span>병렬 처리 슬롯</span>
+          <input id="parallelism" type="number" min="1" max="12" step="1" value="2" />
+        </label>
+
+        <div class="pool-box">
+          <span class="micro">DICE POOL</span>
+          <strong id="diceNotation">—</strong>
+          <p id="poolExplanation">질문에 답하면 불확실성 풀이 만들어진다.</p>
+        </div>
+      </aside>
+
+      <section class="table panel">
+        <div class="section-title">
+          <span>DICE TRAY</span>
+          <span class="rule">02</span>
+        </div>
+
+        <div id="diceTray" class="dice-tray" aria-live="polite"></div>
+
+        <button id="rollButton" class="roll-button" type="button">ROLL THE ESTIMATE</button>
+
+        <div class="stats-grid" aria-label="추정 분포">
+          <div><span>P50</span><strong id="p50">—</strong></div>
+          <div><span>P80</span><strong id="p80">—</strong></div>
+          <div><span>P95</span><strong id="p95">—</strong></div>
+        </div>
+
+        <div class="result-card">
+          <span class="micro">THIS CAMPAIGN</span>
+          <strong id="rollTotal">ROLL TO BEGIN</strong>
+          <p id="rollDetail">같은 추정도 여러 번 굴리면 다른 현실이 나온다.</p>
+        </div>
+      </section>
+    </section>
+
+    <section class="lower-grid">
+      <section class="panel ledger">
+        <div class="section-title">
+          <span>RISK LEDGER</span>
+          <span class="rule">03</span>
+        </div>
+        <div id="riskLedger"></div>
+      </section>
+
+      <section class="panel history-panel">
+        <div class="section-title">
+          <span>ROLL HISTORY</span>
+          <span class="rule">04</span>
+        </div>
+        <ol id="rollHistory" class="history"></ol>
+      </section>
+    </section>
+
+    <footer>
+      <span>LOCAL-FIRST POC</span>
+      <span>NO LOGIN · NO SERVER · BROWSER STORAGE</span>
+    </footer>
+  </main>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
