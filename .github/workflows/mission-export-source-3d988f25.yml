@@ -1,0 +1,60 @@
+name: mission-export-source-3d988f25
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/mission-export-source-3d988f25.yml
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: 8e400e3857ce087a9acf4db167251b454ff4c166
+          path: source
+
+      - name: Pack and checksum exact source
+        run: |
+          tar --exclude=.git -C source -czf man-month-dice-source-3d988f25.tgz .
+          sha256sum man-month-dice-source-3d988f25.tgz > man-month-dice-source-3d988f25.sha256
+
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: man-month-dice-source-3d988f25
+          path: |
+            man-month-dice-source-3d988f25.tgz
+            man-month-dice-source-3d988f25.sha256
+          retention-days: 1
+
+      - name: Checkout status branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: status
+
+      - name: Record mission result
+        working-directory: status
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          cat > mission-source-3d988f25.json <<EOF
+          {
+            "source_commit": "8e400e3857ce087a9acf4db167251b454ff4c166",
+            "run_id": "${RUN_ID}",
+            "run_attempt": "${RUN_ATTEMPT}",
+            "artifact": "man-month-dice-source-3d988f25"
+          }
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mission-source-3d988f25.json
+          git commit -m "chore: record source export mission [skip ci]"
+          git push origin HEAD:main
