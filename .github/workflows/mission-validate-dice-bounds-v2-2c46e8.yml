@@ -1,0 +1,308 @@
+name: mission-validate-dice-bounds-v2-2c46e8
+
+on:
+  push:
+    branches: [feat/dice-screen-bounds-2c46e8]
+    paths:
+      - .github/workflows/mission-validate-dice-bounds-v2-2c46e8.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record validation run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/dice-bounds-v2-run.json <<EOF
+          {
+            "state": "started",
+            "source_commit": "${GITHUB_SHA}",
+            "run_id": "${GITHUB_RUN_ID}",
+            "run_attempt": "${GITHUB_RUN_ATTEMPT}"
+          }
+          EOF
+          content="$(base64 -w0 /tmp/dice-bounds-v2-run.json)"
+          existing_sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/mission-dice-bounds-v2-run-2c46e8.json?ref=feat/dice-screen-bounds-2c46e8" --jq .sha 2>/dev/null || true)"
+          args=(--method PUT "repos/${GITHUB_REPOSITORY}/contents/mission-dice-bounds-v2-run-2c46e8.json" -f message="chore: record bounded dice validation run [skip ci]" -f content="$content" -f branch="feat/dice-screen-bounds-2c46e8")
+          if [ -n "$existing_sha" ]; then args+=(-f sha="$existing_sha"); fi
+          gh api "${args[@]}" >/dev/null
+
+      - name: Checkout feature branch
+        uses: actions/checkout@v6
+        with:
+          ref: feat/dice-screen-bounds-2c46e8
+
+      - name: Apply verified implementation patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "cc968e172d50db1516b1af2f3d77277d48b511ac5bb5893f195182b947f7a43c  .agents/mission/dice-screen-bounds-2c46e8.patch" | sha256sum -c -
+          echo "2532e9550145c4dc303c9b998a2aa176d759e0f9a58cb82e2f2ba53f2d732194  .agents/mission/dice-screen-camera-hold-2c46e8.patch" | sha256sum -c -
+          git apply --check .agents/mission/dice-screen-bounds-2c46e8.patch
+          git apply .agents/mission/dice-screen-bounds-2c46e8.patch
+          git apply --check .agents/mission/dice-screen-camera-hold-2c46e8.patch
+          git apply .agents/mission/dice-screen-camera-hold-2c46e8.patch
+          node --check app.js
+          node --check dice3d.js
+          node --check vendor/cannon-es.js
+          grep -q "#fitCameraToVisibleBounds" dice3d.js
+          grep -q "#containBodies" dice3d.js
+          grep -q "allDiceInsideViewport" dice3d.js
+          grep -q "wallHeight: 6.2" dice3d.js
+          grep -q "Math.max(this.cameraFitDistance" dice3d.js
+          ! grep -q "#frameDice" dice3d.js
+          git diff --check
+
+      - name: Prepare browser harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _site smoke-output /tmp/dice-bounds-v2-browser
+          mkdir -p _site/vendor smoke-output /tmp/dice-bounds-v2-browser
+          cp index.html styles.css app.js dice3d.js .nojekyll _site/
+          cp vendor/three.module.min.js vendor/three.core.min.js vendor/THREE-LICENSE.txt vendor/three-version.json _site/vendor/
+          cp vendor/cannon-es.js vendor/CANNON-ES-LICENSE.txt vendor/cannon-es-version.json _site/vendor/
+          cd /tmp/dice-bounds-v2-browser
+          npm init -y >/dev/null
+          npm install --no-save --no-package-lock playwright-core@1.55.0 >/dev/null
+          cat > bounds-smoke.mjs <<'NODE'
+          import fs from 'node:fs';
+          import { chromium } from 'playwright-core';
+
+          const browser = await chromium.launch({
+            executablePath: process.env.CHROME_BIN,
+            headless: true,
+            args: [
+              '--no-sandbox',
+              '--disable-dev-shm-usage',
+              '--use-gl=angle',
+              '--use-angle=swiftshader',
+              '--enable-unsafe-swiftshader',
+              '--enable-webgl',
+              '--ignore-gpu-blocklist',
+            ],
+          });
+          const scenarios = [
+            { name: 'desktop', width: 1440, height: 1200, factor: 2, rolls: 1 },
+            { name: 'mobile', width: 390, height: 844, factor: 3, rolls: 2 },
+            { name: 'narrow', width: 320, height: 740, factor: 3, rolls: 2 },
+            { name: 'resize', width: 920, height: 900, factor: 3, rolls: 1, resizeTo: { width: 340, height: 760 } },
+          ];
+          const report = {};
+          const baseUrl = 'http://127.0.0.1:4173/';
+
+          function assertInside(state, label) {
+            if (!state) throw new Error(`${label}: debug state missing`);
+            if (!state.allDiceInsideViewport || state.maxViewportOverflow > 0) {
+              throw new Error(`${label}: viewport overflow ${JSON.stringify(state)}`);
+            }
+            for (const die of state.dice) {
+              const bounds = die.screenBounds;
+              if (!die.insideViewport
+                || bounds.minX < -0.985 || bounds.maxX > 0.985
+                || bounds.minY < -0.985 || bounds.maxY > 0.985) {
+                throw new Error(`${label}: projected die escaped ${JSON.stringify(die)}`);
+              }
+              if (Math.abs(die.position.x) > 5.21
+                || Math.abs(die.position.z) > 3.26
+                || die.position.y > 5.81
+                || die.position.y < -1.2) {
+                throw new Error(`${label}: physical die escaped ${JSON.stringify(die)}`);
+              }
+            }
+          }
+
+          for (const scenario of scenarios) {
+            const context = await browser.newContext({
+              viewport: { width: scenario.width, height: scenario.height },
+              deviceScaleFactor: 1,
+              isMobile: scenario.width < 600,
+            });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+            page.on('console', (message) => {
+              const url = message.location().url || '';
+              if (message.type() === 'error' && !url.endsWith('/favicon.ico')) {
+                errors.push(`console: ${message.text()} @ ${url}`);
+              }
+            });
+
+            await page.goto(`${baseUrl}?scenario=${scenario.name}`, { waitUntil: 'networkidle' });
+            await page.waitForFunction(() => document.querySelector('#diceTray')?.dataset.renderer === 'three-cannon', null, { timeout: 20000 });
+            await page.evaluate(() => localStorage.clear());
+            await page.reload({ waitUntil: 'networkidle' });
+            await page.waitForFunction(() => document.querySelector('#diceTray')?.dataset.renderer === 'three-cannon', null, { timeout: 20000 });
+            await page.evaluate((factor) => {
+              for (const input of document.querySelectorAll('[data-factor]')) {
+                input.value = String(factor);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            }, scenario.factor);
+            await page.waitForTimeout(250);
+
+            const initial = await page.evaluate(() => window.__MAN_MONTH_DICE_DEBUG__?.());
+            assertInside(initial, `${scenario.name}/initial`);
+            const runs = [];
+
+            for (let rollIndex = 0; rollIndex < scenario.rolls; rollIndex += 1) {
+              await page.click('#rollButton');
+              await page.waitForFunction(() => document.querySelector('#diceTray')?.classList.contains('is-rolling'), null, { timeout: 5000 });
+              const startedAt = Date.now();
+              let resized = false;
+              let samples = 0;
+              let maxCameraDistance = 0;
+              let maxCorrections = 0;
+              let maximumDice = 0;
+
+              while (Date.now() - startedAt < 45000) {
+                const state = await page.evaluate(() => window.__MAN_MONTH_DICE_DEBUG__?.());
+                assertInside(state, `${scenario.name}/${rollIndex}/rolling/${samples}`);
+                samples += 1;
+                maxCameraDistance = Math.max(maxCameraDistance, state.cameraDistance);
+                maxCorrections = Math.max(maxCorrections, state.containmentCorrections);
+                maximumDice = Math.max(maximumDice, state.dice.length);
+
+                if (scenario.resizeTo && !resized && Date.now() - startedAt > 350) {
+                  await page.setViewportSize(scenario.resizeTo);
+                  resized = true;
+                  await page.waitForTimeout(180);
+                  const resizedState = await page.evaluate(() => window.__MAN_MONTH_DICE_DEBUG__?.());
+                  assertInside(resizedState, `${scenario.name}/${rollIndex}/resized`);
+                }
+
+                const complete = await page.evaluate(() => {
+                  const tray = document.querySelector('#diceTray');
+                  const button = document.querySelector('#rollButton');
+                  return Boolean(tray?.dataset.lastRoll) && !button?.disabled && !tray.classList.contains('is-rolling');
+                });
+                if (complete) break;
+                await page.waitForTimeout(85);
+              }
+
+              const final = await page.evaluate(() => ({
+                complete: Boolean(document.querySelector('#diceTray')?.dataset.lastRoll)
+                  && !document.querySelector('#rollButton')?.disabled
+                  && !document.querySelector('#diceTray')?.classList.contains('is-rolling'),
+                total: Number(document.querySelector('#diceTray')?.dataset.lastRoll || 0),
+                detail: document.querySelector('#rollDetail')?.textContent || '',
+                historyCount: document.querySelectorAll('#rollHistory li:not(.history-empty)').length,
+                tray: {
+                  width: document.querySelector('#diceTray')?.clientWidth || 0,
+                  height: document.querySelector('#diceTray')?.clientHeight || 0,
+                },
+                debug: window.__MAN_MONTH_DICE_DEBUG__?.(),
+              }));
+              if (!final.complete) throw new Error(`${scenario.name}/${rollIndex}: roll timed out: ${JSON.stringify(final.debug)}`);
+              assertInside(final.debug, `${scenario.name}/${rollIndex}/final`);
+              if (final.total <= 0 || final.historyCount < rollIndex + 1) {
+                throw new Error(`${scenario.name}/${rollIndex}: result missing ${JSON.stringify(final)}`);
+              }
+              console.log(JSON.stringify({
+                scenario: scenario.name,
+                rollIndex,
+                total: final.total,
+                dice: final.debug.dice.length,
+                samples,
+                maxCameraDistance,
+                maxCorrections,
+              }));
+              runs.push({
+                total: final.total,
+                detail: final.detail,
+                samples,
+                maximumDice,
+                maxCameraDistance,
+                maxCorrections,
+                tray: final.tray,
+                finalDebug: final.debug,
+              });
+            }
+
+            if (errors.length) throw new Error(`${scenario.name}: ${errors.join(' | ')}`);
+            await page.screenshot({ path: `${process.env.OUTPUT_DIR}/${scenario.name}.png`, fullPage: true });
+            report[scenario.name] = {
+              requestedViewport: { width: scenario.width, height: scenario.height },
+              finalViewport: scenario.resizeTo || { width: scenario.width, height: scenario.height },
+              factor: scenario.factor,
+              initial,
+              runs,
+              errors,
+            };
+            fs.writeFileSync(process.env.REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
+            await context.close();
+          }
+
+          await browser.close();
+          NODE
+
+      - name: Run responsive viewport containment tests
+        shell: bash
+        env:
+          OUTPUT_DIR: ${{ github.workspace }}/smoke-output
+          REPORT_PATH: ${{ github.workspace }}/smoke-output/report.json
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory "$GITHUB_WORKSPACE/_site" >/tmp/dice-bounds-v2-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          export CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)"
+          test -n "$CHROME_BIN"
+          cd /tmp/dice-bounds-v2-browser
+          node bounds-smoke.mjs
+          test -s "$REPORT_PATH"
+          test -s "$OUTPUT_DIR/desktop.png"
+          test -s "$OUTPUT_DIR/mobile.png"
+          test -s "$OUTPUT_DIR/narrow.png"
+          test -s "$OUTPUT_DIR/resize.png"
+
+      - name: Publish validated implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          with open('smoke-output/report.json', encoding='utf-8') as handle:
+              report = json.load(handle)
+          payload = {
+              'validated_source': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'desktop': 'success',
+              'mobile': 'success',
+              'narrow': 'success',
+              'live_resize': 'success',
+              'all_dice_inside_viewport': 'success',
+              'report': report,
+              'recorded_at': datetime.now(timezone.utc).isoformat(),
+          }
+          with open('mission-dice-bounds-validation-2c46e8.json', 'w', encoding='utf-8') as handle:
+              json.dump(payload, handle, ensure_ascii=False, indent=2)
+              handle.write('\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dice3d.js README.POC.md mission-dice-bounds-validation-2c46e8.json
+          git diff --cached --check
+          git commit -m 'fix: keep physical dice inside the visible tray'
+          git push origin HEAD:feat/dice-screen-bounds-2c46e8
+
+      - name: Upload viewport evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dice-screen-bounds-validation-v2-2c46e8
+          path: |
+            smoke-output/
+            /tmp/dice-bounds-v2-http.log
+          if-no-files-found: warn
+          retention-days: 3
