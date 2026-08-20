@@ -19,17 +19,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p payload/vendor package-work
-          npm pack three@latest --pack-destination package-work
+          npm pack three@0.185.1 --pack-destination package-work
           tar -xzf package-work/three-*.tgz -C package-work
           VERSION=$(node -p "require('./package-work/package/package.json').version")
-          if [ -f package-work/package/build/three.module.min.js ]; then
-            cp package-work/package/build/three.module.min.js payload/vendor/three.module.min.js
-          else
-            cp package-work/package/build/three.module.js payload/vendor/three.module.min.js
-          fi
+          test "$VERSION" = "0.185.1"
+          cp package-work/package/build/three.module.min.js payload/vendor/three.module.min.js
+          cp package-work/package/build/three.core.min.js payload/vendor/three.core.min.js
           cp package-work/package/LICENSE payload/vendor/THREE-LICENSE.txt
           printf '{\n  "package": "three",\n  "version": "%s"\n}\n' "$VERSION" > payload/vendor/three-version.json
-          (cd payload && sha256sum vendor/three.module.min.js vendor/THREE-LICENSE.txt vendor/three-version.json > SHA256SUMS)
+          (cd payload && sha256sum vendor/three.module.min.js vendor/three.core.min.js vendor/THREE-LICENSE.txt vendor/three-version.json > SHA256SUMS)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Upload verified Three.js payload
@@ -57,11 +55,12 @@ jobs:
             "run_id": "${RUN_ID}",
             "run_attempt": "${RUN_ATTEMPT}",
             "artifact": "three-supply-3d988f25",
-            "three_version": "${THREE_VERSION}"
+            "three_version": "${THREE_VERSION}",
+            "includes_core_module": true
           }
           EOF
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add mission-three-3d988f25.json
-          git commit -m "chore: record Three.js supply mission [skip ci]"
+          git commit -m "chore: record complete Three.js supply mission [skip ci]"
           git push origin HEAD:main
