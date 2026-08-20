@@ -1,0 +1,246 @@
+{
+  "validated_source": "eaf4ece554a6be360d69b65aaa4d0ad0a90b7d4c",
+  "run_id": "32366561311",
+  "run_attempt": "1",
+  "three_version": "0.185.1",
+  "cannon_es_version": "0.20.0",
+  "surface_face_numbers": "success",
+  "rigid_body_physics": "success",
+  "top_face_determines_result": "success",
+  "browser": {
+    "initial": {
+      "renderer": "three-cannon",
+      "physics": "cannon-es",
+      "faceLabels": "surface-material",
+      "numberedFaces": 30,
+      "separateNumberObjects": 0,
+      "canvasWidth": 661,
+      "canvasHeight": 330,
+      "htmlDiceNodes": 0,
+      "debug": {
+        "renderer": "three-cannon",
+        "physics": "cannon-es",
+        "faceLabels": "surface-material",
+        "numberedFaces": 30,
+        "separateNumberObjects": 0,
+        "physicsBodies": 0,
+        "physicsSteps": 0,
+        "topFaces": "",
+        "dice": [
+          {
+            "sides": 6,
+            "numberedFaces": 6,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null
+          },
+          {
+            "sides": 6,
+            "numberedFaces": 6,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null
+          },
+          {
+            "sides": 6,
+            "numberedFaces": 6,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null
+          },
+          {
+            "sides": 6,
+            "numberedFaces": 6,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null
+          },
+          {
+            "sides": 6,
+            "numberedFaces": 6,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null
+          }
+        ]
+      }
+    },
+    "moving": {
+      "renderer": "three-cannon",
+      "physics": "cannon-es",
+      "faceLabels": "surface-material",
+      "numberedFaces": 30,
+      "separateNumberObjects": 0,
+      "physicsBodies": 5,
+      "physicsSteps": 0,
+      "topFaces": "",
+      "dice": [
+        {
+          "sides": 6,
+          "numberedFaces": 6,
+          "numeralsInSurfaceMaterial": true,
+          "separateNumberObjects": 0,
+          "hasBody": true,
+          "bodyType": 1,
+          "sleeping": false,
+          "speed": 11.0587,
+          "angularSpeed": 6.2101,
+          "upwardFace": 4
+        },
+        {
+          "sides": 6,
+          "numberedFaces": 6,
+          "numeralsInSurfaceMaterial": true,
+          "separateNumberObjects": 0,
+          "hasBody": true,
+          "bodyType": 1,
+          "sleeping": false,
+          "speed": 5.4996,
+          "angularSpeed": 4.8855,
+          "upwardFace": 1
+        },
+        {
+          "sides": 6,
+          "numberedFaces": 6,
+          "numeralsInSurfaceMaterial": true,
+          "separateNumberObjects": 0,
+          "hasBody": true,
+          "bodyType": 1,
+          "sleeping": false,
+          "speed": 7.2029,
+          "angularSpeed": 4.9111,
+          "upwardFace": 5
+        },
+        {
+          "sides": 6,
+          "numberedFaces": 6,
+          "numeralsInSurfaceMaterial": true,
+          "separateNumberObjects": 0,
+          "hasBody": true,
+          "bodyType": 1,
+          "sleeping": false,
+          "speed": 7.4734,
+          "angularSpeed": 7.9658,
+          "upwardFace": 6
+        },
+        {
+          "sides": 6,
+          "numberedFaces": 6,
+          "numeralsInSurfaceMaterial": true,
+          "separateNumberObjects": 0,
+          "hasBody": true,
+          "bodyType": 1,
+          "sleeping": false,
+          "speed": 9.612,
+          "angularSpeed": 11.5153,
+          "upwardFace": 2
+        }
+      ]
+    },
+    "final": {
+      "total": 16,
+      "detail": "3  |  3  |  3  |  3  |  4",
+      "summary": "16 EFFORT POINTS",
+      "historyCount": 1,
+      "debug": {
+        "renderer": "three-cannon",
+        "physics": "cannon-es",
+        "faceLabels": "surface-material",
+        "numberedFaces": 30,
+        "separateNumberObjects": 0,
+        "physicsBodies": 5,
+        "physicsSteps": 146,
+        "topFaces": "3,3,3,3,4",
+        "dice": [
+          {
+            "sides": 6,
+            "numberedFaces": 6,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": true,
+            "bodyType": 2,
+            "sleeping": true,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": 3
+          },
+          {
+            "sides": 6,
+            "numberedFaces": 6,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": true,
+            "bodyType": 2,
+            "sleeping": true,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": 3
+          },
+          {
+            "sides": 6,
+            "numberedFaces": 6,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": true,
+            "bodyType": 2,
+            "sleeping": true,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": 3
+          },
+          {
+            "sides": 6,
+            "numberedFaces": 6,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": true,
+            "bodyType": 2,
+            "sleeping": true,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": 3
+          },
+          {
+            "sides": 6,
+            "numberedFaces": 6,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": true,
+            "bodyType": 2,
+            "sleeping": true,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": 4
+          }
+        ]
+      }
+    },
+    "errors": []
+  },
+  "recorded_at": "2026-08-20T12:00:21.528328+00:00"
+}
