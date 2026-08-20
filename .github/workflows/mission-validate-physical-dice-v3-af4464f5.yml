@@ -1,0 +1,131 @@
+name: mission-validate-physical-dice-v3-af4464f5
+
+on:
+  push:
+    branches: [feat/physical-dice-af4464f5]
+    paths:
+      - .github/workflows/mission-validate-physical-dice-v3-af4464f5.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record run identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '{\n  "state": "started",\n  "source_commit": "%s",\n  "run_id": "%s",\n  "run_attempt": "%s"\n}\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > /tmp/run.json
+          content="$(base64 -w0 /tmp/run.json)"
+          sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/mission-physical-dice-run-af4464f5.json?ref=feat/physical-dice-af4464f5" --jq .sha 2>/dev/null || true)"
+          args=(--method PUT "repos/${GITHUB_REPOSITORY}/contents/mission-physical-dice-run-af4464f5.json" -f message="chore: record physical dice validation run [skip ci]" -f content="$content" -f branch="feat/physical-dice-af4464f5")
+          if [ -n "$sha" ]; then args+=(-f sha="$sha"); fi
+          gh api "${args[@]}" >/dev/null
+
+      - name: Checkout task branch
+        uses: actions/checkout@v6
+        with:
+          ref: feat/physical-dice-af4464f5
+
+      - name: Restore exact implementation and pinned physics runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .agents/mission/physical-dice-af4464f5.b64.* | base64 -d > /tmp/physical-dice-af4464f5.tgz
+          echo "795d51e151b44e4d08120361e38f4011ce95604a5184de9ae84123c40910cf70  /tmp/physical-dice-af4464f5.tgz" | sha256sum -c -
+          tar -xzf /tmp/physical-dice-af4464f5.tgz
+          rm -rf /tmp/cannon-package
+          mkdir -p /tmp/cannon-package vendor
+          npm pack cannon-es@0.20.0 --pack-destination /tmp/cannon-package --silent
+          tar -xzf /tmp/cannon-package/cannon-es-*.tgz -C /tmp/cannon-package
+          test "$(node -p "require('/tmp/cannon-package/package/package.json').version")" = "0.20.0"
+          cp /tmp/cannon-package/package/dist/cannon-es.js vendor/cannon-es.js
+          cp /tmp/cannon-package/package/LICENSE vendor/CANNON-ES-LICENSE.txt
+          printf '{\n  "package": "cannon-es",\n  "version": "0.20.0"\n}\n' > vendor/cannon-es-version.json
+          echo "f0700cbd3a482954949b9d58c1b0f76dcc74767750297647a39d8c40dd63d37c  vendor/cannon-es.js" | sha256sum -c -
+          echo "4714d0272f50cb21fe46fe29333c7c600d3c85b5ebd2a80f4db07e8cfccbf5b2  vendor/CANNON-ES-LICENSE.txt" | sha256sum -c -
+          echo "7301673867b1b0168163f0c1eecebb21f7b362065db5582b9c1e23f79c5bdbfb  vendor/cannon-es-version.json" | sha256sum -c -
+          node --check app.js
+          node --check dice3d.js
+          node --check vendor/cannon-es.js
+          grep -q "createEngravedFaceMaps" dice3d.js
+          grep -q "map: maps.color" dice3d.js
+          grep -q "bumpMap: maps.bump" dice3d.js
+          grep -q "new CANNON.World" dice3d.js
+          grep -q "new CANNON.ConvexPolyhedron" dice3d.js
+          grep -q "readTopFace" dice3d.js
+          ! grep -q "new THREE.Sprite" dice3d.js
+          grep -q "roll = await dice3D.roll(pool)" app.js
+
+      - name: Run Chrome WebGL rigid-body test
+        shell: bash
+        env:
+          SCREENSHOT_PATH: ${{ github.workspace }}/smoke-output/physical-dice.png
+          RESULT_PATH: ${{ github.workspace }}/smoke-output/browser-result.json
+        run: |
+          set -euo pipefail
+          rm -rf _site smoke-output /tmp/physical-dice-browser
+          mkdir -p _site/vendor smoke-output /tmp/physical-dice-browser
+          cp index.html styles.css app.js dice3d.js .nojekyll _site/
+          cp vendor/three.module.min.js vendor/three.core.min.js vendor/THREE-LICENSE.txt vendor/three-version.json _site/vendor/
+          cp vendor/cannon-es.js vendor/CANNON-ES-LICENSE.txt vendor/cannon-es-version.json _site/vendor/
+          cd /tmp/physical-dice-browser
+          npm init -y >/dev/null
+          npm install --no-save --no-package-lock playwright-core@1.55.0 >/dev/null
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory "$GITHUB_WORKSPACE/_site" >/tmp/physical-dice-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          export CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)"
+          test -n "$CHROME_BIN"
+          node "$GITHUB_WORKSPACE/smoke/physical-dice-smoke-af4464f5.mjs"
+          test -s "$SCREENSHOT_PATH"
+          test -s "$RESULT_PATH"
+
+      - name: Publish verified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          with open('smoke-output/browser-result.json', encoding='utf-8') as handle:
+              browser = json.load(handle)
+          payload = {
+              'validated_source': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'three_version': '0.185.1',
+              'cannon_es_version': '0.20.0',
+              'surface_face_numbers': 'success',
+              'rigid_body_physics': 'success',
+              'top_face_determines_result': 'success',
+              'browser': browser,
+              'recorded_at': datetime.now(timezone.utc).isoformat(),
+          }
+          with open('mission-physical-dice-validation-af4464f5.json', 'w', encoding='utf-8') as handle:
+              json.dump(payload, handle, ensure_ascii=False, indent=2)
+              handle.write('\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js dice3d.js index.html README.POC.md vendor/cannon-es.js vendor/CANNON-ES-LICENSE.txt vendor/cannon-es-version.json mission-physical-dice-validation-af4464f5.json
+          git diff --cached --check
+          git commit -m 'feat: engrave numbers on physically simulated dice'
+          git push origin HEAD:feat/physical-dice-af4464f5
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: physical-dice-validation-v3-af4464f5
+          path: |
+            smoke-output/
+            /tmp/physical-dice-http.log
+          if-no-files-found: warn
+          retention-days: 3
