@@ -1,0 +1,257 @@
+name: mission-validate-physical-dice-af4464f5
+
+on:
+  push:
+    branches: [feat/physical-dice-af4464f5]
+    paths:
+      - .github/workflows/mission-validate-physical-dice-af4464f5.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record run identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/run.json <<EOF
+          {
+            "state": "started",
+            "source_commit": "${GITHUB_SHA}",
+            "run_id": "${GITHUB_RUN_ID}",
+            "run_attempt": "${GITHUB_RUN_ATTEMPT}"
+          }
+          EOF
+          content="$(base64 -w0 /tmp/run.json)"
+          existing_sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/mission-physical-dice-run-af4464f5.json?ref=feat/physical-dice-af4464f5" --jq .sha 2>/dev/null || true)"
+          args=(--method PUT "repos/${GITHUB_REPOSITORY}/contents/mission-physical-dice-run-af4464f5.json" \
+            -f message="chore: record physical dice validation run [skip ci]" \
+            -f content="$content" -f branch="feat/physical-dice-af4464f5")
+          if [ -n "$existing_sha" ]; then args+=(-f sha="$existing_sha"); fi
+          gh api "${args[@]}" >/dev/null
+
+      - name: Checkout task branch
+        uses: actions/checkout@v6
+        with:
+          ref: feat/physical-dice-af4464f5
+
+      - name: Apply exact implementation payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "a4fd6670146d7f83fdfea2c4dc5bf42f415a09c3e95e7fb2dff856886d37bbab  .agents/mission/physical-dice-af4464f5.tgz" | sha256sum -c -
+          tar -xzf .agents/mission/physical-dice-af4464f5.tgz
+
+      - name: Verify static implementation invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check app.js
+          node --check dice3d.js
+          node --check vendor/cannon-es.js
+          grep -q "from './vendor/cannon-es.js'" dice3d.js
+          grep -q "createEngravedNumberTexture" dice3d.js
+          grep -q "readTopFace" dice3d.js
+          grep -q "new CANNON.World" dice3d.js
+          grep -q "new CANNON.ConvexPolyhedron" dice3d.js
+          grep -q "new THREE.PlaneGeometry" dice3d.js
+          ! grep -q "new THREE.Sprite" dice3d.js
+          grep -q "roll = await dice3D.roll(pool)" app.js
+
+      - name: Prepare browser test
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _site smoke /tmp/physical-dice-browser
+          mkdir -p _site/vendor smoke /tmp/physical-dice-browser
+          cp index.html styles.css app.js dice3d.js .nojekyll _site/
+          cp vendor/three.module.min.js vendor/three.core.min.js vendor/THREE-LICENSE.txt vendor/three-version.json _site/vendor/
+          cp vendor/cannon-es.js vendor/CANNON-ES-LICENSE.txt vendor/cannon-es-version.json _site/vendor/
+          cd /tmp/physical-dice-browser
+          npm init -y >/dev/null
+          npm install --no-save --no-package-lock playwright-core@1.55.0 >/dev/null
+          cat > smoke.mjs <<'NODE'
+          import fs from 'node:fs';
+          import { chromium } from 'playwright-core';
+
+          const errors = [];
+          const browser = await chromium.launch({
+            executablePath: process.env.CHROME_BIN,
+            headless: true,
+            args: [
+              '--no-sandbox',
+              '--disable-dev-shm-usage',
+              '--use-gl=angle',
+              '--use-angle=swiftshader',
+              '--enable-unsafe-swiftshader',
+              '--enable-webgl',
+              '--ignore-gpu-blocklist',
+            ],
+          });
+          const page = await browser.newPage({ viewport: { width: 1440, height: 1200 } });
+          page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+          page.on('console', (message) => {
+            const url = message.location().url || '';
+            if (message.type() === 'error' && !url.endsWith('/favicon.ico')) {
+              errors.push(`console: ${message.text()} @ ${url}`);
+            }
+          });
+
+          await page.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' });
+          await page.waitForFunction(() => document.querySelector('#diceTray')?.dataset.renderer === 'three', null, { timeout: 20000 });
+
+          const initial = await page.evaluate(() => {
+            const tray = document.querySelector('#diceTray');
+            const canvas = tray?.querySelector('canvas.dice-canvas');
+            const debug = window.__MAN_MONTH_DICE_DEBUG__?.();
+            return {
+              renderer: tray?.dataset.renderer || '',
+              physics: tray?.dataset.physics || '',
+              surfaceLabels: tray?.dataset.faceLabels || '',
+              canvasWidth: canvas?.width || 0,
+              canvasHeight: canvas?.height || 0,
+              htmlDiceNodes: tray?.querySelectorAll('.die').length || 0,
+              debug,
+            };
+          });
+
+          if (initial.renderer !== 'three' || initial.physics !== 'cannon-es') {
+            throw new Error(`Three.js/Cannon renderer did not initialize: ${JSON.stringify(initial)}`);
+          }
+          if (initial.surfaceLabels !== 'surface' || initial.htmlDiceNodes !== 0) {
+            throw new Error(`Numbers are not exclusively surface-attached: ${JSON.stringify(initial)}`);
+          }
+          if (initial.canvasWidth < 100 || initial.canvasHeight < 100) {
+            throw new Error(`WebGL canvas is invalid: ${JSON.stringify(initial)}`);
+          }
+          if (!initial.debug || initial.debug.faceMarks < 30) {
+            throw new Error(`Expected engraved face marks on preview dice: ${JSON.stringify(initial)}`);
+          }
+          for (const die of initial.debug.dice) {
+            if (!die.faceMarksAttached || !die.faceMarksUseSurfaceGeometry || !die.faceMarksHaveTextures || die.faceMarksAreSprites) {
+              throw new Error(`A number is detached from its die face: ${JSON.stringify(die)}`);
+            }
+          }
+          if (errors.length) throw new Error(errors.join(' | '));
+
+          await page.click('#rollButton');
+          await page.waitForFunction(() => document.querySelector('#diceTray')?.classList.contains('is-rolling'), null, { timeout: 5000 });
+          await page.waitForTimeout(450);
+          const moving = await page.evaluate(() => window.__MAN_MONTH_DICE_DEBUG__?.());
+          if (!moving || moving.physicsBodies < 5 || moving.physicsSteps < 1) {
+            throw new Error(`Rigid bodies did not enter simulation: ${JSON.stringify(moving)}`);
+          }
+          if (!moving.dice.some((die) => die.speed > 0.05 || die.angularSpeed > 0.05)) {
+            throw new Error(`Dice never acquired physical motion: ${JSON.stringify(moving)}`);
+          }
+
+          await page.waitForFunction(() => {
+            const tray = document.querySelector('#diceTray');
+            const button = document.querySelector('#rollButton');
+            return Boolean(tray?.dataset.lastRoll) && !button?.disabled && !tray.classList.contains('is-rolling');
+          }, null, { timeout: 30000 });
+
+          const final = await page.evaluate(() => {
+            const tray = document.querySelector('#diceTray');
+            const debug = window.__MAN_MONTH_DICE_DEBUG__?.();
+            return {
+              total: Number(tray?.dataset.lastRoll || 0),
+              detail: document.querySelector('#rollDetail')?.textContent || '',
+              summary: document.querySelector('#rollTotal')?.textContent || '',
+              historyCount: document.querySelectorAll('#rollHistory li:not(.history-empty)').length,
+              debug,
+            };
+          });
+          const topFaces = final.debug.lastTopFaces.split(',').filter(Boolean).map(Number);
+          const totalFromFaces = topFaces.reduce((sum, value) => sum + value, 0);
+          const detailValues = final.detail.match(/\d+/g)?.map(Number) || [];
+          if (final.debug.physics !== 'cannon-es' || final.debug.physicsSteps < 5) {
+            throw new Error(`Physics simulation did not advance: ${JSON.stringify(final)}`);
+          }
+          if (!topFaces.length || totalFromFaces !== final.total || detailValues.join(',') !== topFaces.join(',')) {
+            throw new Error(`Final upward faces do not determine the result: ${JSON.stringify({ final, topFaces, detailValues })}`);
+          }
+          if (!/EFFORT POINTS/.test(final.summary) || final.historyCount < 1) {
+            throw new Error(`Roll result was not committed to the UI: ${JSON.stringify(final)}`);
+          }
+          for (const die of final.debug.dice) {
+            if (!die.hasBody || !die.faceMarksAttached || die.faceMarksAreSprites) {
+              throw new Error(`Final die is not a physical labelled body: ${JSON.stringify(die)}`);
+            }
+          }
+          if (errors.length) throw new Error(errors.join(' | '));
+
+          await page.screenshot({ path: process.env.SCREENSHOT_PATH, fullPage: true });
+          fs.writeFileSync(
+            process.env.RESULT_PATH,
+            `${JSON.stringify({ initial, moving, final, errors }, null, 2)}\n`,
+          );
+          await browser.close();
+          NODE
+
+      - name: Run Chrome WebGL physics smoke test
+        shell: bash
+        env:
+          SCREENSHOT_PATH: ${{ github.workspace }}/smoke/physical-dice.png
+          RESULT_PATH: ${{ github.workspace }}/smoke/browser-result.json
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory _site >/tmp/physical-dice-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          export CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium-browser || command -v chromium || true)"
+          test -n "$CHROME_BIN"
+          cd /tmp/physical-dice-browser
+          node smoke.mjs
+          test -s "$SCREENSHOT_PATH"
+          test -s "$RESULT_PATH"
+
+      - name: Publish verified source to task branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          with open('smoke/browser-result.json', encoding='utf-8') as handle:
+              browser = json.load(handle)
+          payload = {
+              'validated_source': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'three_version': '0.185.1',
+              'cannon_es_version': '0.20.0',
+              'surface_face_numbers': 'success',
+              'rigid_body_physics': 'success',
+              'top_face_determines_result': 'success',
+              'browser': browser,
+              'recorded_at': datetime.now(timezone.utc).isoformat(),
+          }
+          with open('mission-physical-dice-validation-af4464f5.json', 'w', encoding='utf-8') as handle:
+              json.dump(payload, handle, ensure_ascii=False, indent=2)
+              handle.write('\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js dice3d.js index.html README.POC.md vendor/cannon-es.js vendor/CANNON-ES-LICENSE.txt vendor/cannon-es-version.json mission-physical-dice-validation-af4464f5.json
+          git diff --cached --check
+          git commit -m 'feat: engrave numbers on physically simulated dice'
+          git push origin HEAD:feat/physical-dice-af4464f5
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: physical-dice-validation-af4464f5
+          path: |
+            smoke/
+            /tmp/physical-dice-http.log
+          if-no-files-found: warn
+          retention-days: 3
