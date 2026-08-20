@@ -1,0 +1,30 @@
+name: mission-export-bounds-source-2c46e8
+
+on:
+  push:
+    branches: [feat/dice-screen-bounds-2c46e8]
+    paths:
+      - .github/workflows/mission-export-bounds-source-2c46e8.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v6
+        with:
+          ref: feat/dice-screen-bounds-2c46e8
+
+      - name: Pack source
+        run: |
+          tar --exclude=.git --exclude=_site -czf /tmp/man-month-dice-bounds-source-2c46e8.tgz .
+
+      - name: Upload source
+        uses: actions/upload-artifact@v4
+        with:
+          name: man-month-dice-bounds-source-2c46e8
+          path: /tmp/man-month-dice-bounds-source-2c46e8.tgz
+          retention-days: 1
