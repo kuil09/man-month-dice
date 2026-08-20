@@ -1,6 +1,5 @@
 name: Deploy GitHub Pages
 
-# Static PoC deployment; no build step is required.
 on:
   push:
     branches: [main]
@@ -13,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -29,13 +28,85 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Prepare static site
+        run: |
+          rm -rf _site
+          mkdir _site
+          cp index.html styles.css app.js .nojekyll _site/
+
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        id: configure
+        continue-on-error: true
+        uses: actions/configure-pages@v6
+
       - name: Upload site
-        uses: actions/upload-pages-artifact@v3
+        id: upload
+        if: steps.configure.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-pages-artifact@v4
         with:
-          path: .
+          path: _site
+
       - name: Deploy
         id: deployment
+        if: steps.configure.outcome == 'success' && steps.upload.outcome == 'success'
+        continue-on-error: true
         uses: actions/deploy-pages@v4
+
+      - name: Record deployment result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
+          UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
+          DEPLOY_OUTCOME: ${{ steps.deployment.outcome }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          payload = {
+              "commit": os.environ["GITHUB_SHA"],
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "configure": os.environ.get("CONFIGURE_OUTCOME", "unknown"),
+              "upload": os.environ.get("UPLOAD_OUTCOME", "unknown"),
+              "deploy": os.environ.get("DEPLOY_OUTCOME", "unknown"),
+              "page_url": os.environ.get("PAGE_URL", ""),
+              "recorded_at": datetime.now(timezone.utc).isoformat(),
+          }
+          with open("deployment-status.json", "w", encoding="utf-8") as handle:
+              json.dump(payload, handle, ensure_ascii=False, indent=2)
+              handle.write("\n")
+          PY
+
+          content="$(base64 -w0 deployment-status.json)"
+          existing_sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/deployment-status.json?ref=${GITHUB_REF_NAME}" --jq .sha 2>/dev/null || true)"
+
+          if [ -n "$existing_sha" ]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/deployment-status.json" \
+              -f message="chore: record Pages deployment result [skip ci]" \
+              -f content="$content" \
+              -f branch="$GITHUB_REF_NAME" \
+              -f sha="$existing_sha" >/dev/null
+          else
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/deployment-status.json" \
+              -f message="chore: record Pages deployment result [skip ci]" \
+              -f content="$content" \
+              -f branch="$GITHUB_REF_NAME" >/dev/null
+          fi
+
+      - name: Fail when deployment did not complete
+        if: always()
+        env:
+          CONFIGURE_OUTCOME: ${{ steps.configure.outcome }}
+          UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
+          DEPLOY_OUTCOME: ${{ steps.deployment.outcome }}
+        run: |
+          test "$CONFIGURE_OUTCOME" = "success"
+          test "$UPLOAD_OUTCOME" = "success"
+          test "$DEPLOY_OUTCOME" = "success"
