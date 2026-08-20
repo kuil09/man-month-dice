@@ -106,3 +106,5 @@ jobs:
           git diff --cached --check
           git commit -m 'fix: prevent max-risk rolls from hanging'
           git push origin HEAD:main
+
+# trigger: 2026-08-21
