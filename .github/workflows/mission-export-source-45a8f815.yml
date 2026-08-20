@@ -1,0 +1,28 @@
+name: mission-export-source-45a8f815
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/mission-export-source-45a8f815.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v6
+        with:
+          ref: f8649ffeee8354bc4070bfe9ed123f60923f83ec
+      - name: Pack exact source
+        run: tar --exclude=.git -czf /tmp/man-month-dice-source.tgz .
+      - name: Upload exact source
+        uses: actions/upload-artifact@v4
+        with:
+          name: man-month-dice-source-45a8f815
+          path: /tmp/man-month-dice-source.tgz
+          retention-days: 1
