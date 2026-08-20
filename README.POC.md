@@ -11,6 +11,7 @@ A local-first software-estimation toy that models uncertainty as a TRPG dice poo
 - A roll samples one possible project outcome; maximum d12 results explode and roll again.
 - Three.js renders d4/d6/d8/d12 polyhedra in WebGL, with every value attached to the corresponding die face rather than drawn as a billboard overlay.
 - cannon-es `0.20.0` performs rigid-body gravity, angular momentum, floor/wall contact, die-to-die collision, friction, restitution, and sleeping. The roll result is read from the final upward face.
+- Camera framing is recalculated from the tray and every die on each physics step, while tall collision walls and numerical containment keep every die inside the visible canvas on desktop and mobile.
 - Three.js `0.185.1` and cannon-es `0.20.0` browser modules are vendored in `vendor/`; the deployed app has no CDN runtime dependency.
 - Adding parallelism does not divide the effort roll. It is displayed as an independent coordination constraint.
 
