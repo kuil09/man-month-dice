@@ -7,7 +7,7 @@ on:
       - .github/workflows/mission-export-bounds-source-2c46e8.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export:
@@ -28,3 +28,21 @@ jobs:
           name: man-month-dice-bounds-source-2c46e8
           path: /tmp/man-month-dice-bounds-source-2c46e8.tgz
           retention-days: 1
+
+      - name: Record export run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > /tmp/dice-bounds-source-run.json <<EOF
+          {
+            "run_id": "${GITHUB_RUN_ID}",
+            "run_attempt": "${GITHUB_RUN_ATTEMPT}",
+            "source_commit": "${GITHUB_SHA}",
+            "artifact": "man-month-dice-bounds-source-2c46e8"
+          }
+          EOF
+          content="$(base64 -w0 /tmp/dice-bounds-source-run.json)"
+          existing_sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/mission-dice-bounds-source-2c46e8.json?ref=${GITHUB_REF_NAME}" --jq .sha 2>/dev/null || true)"
+          args=(--method PUT "repos/${GITHUB_REPOSITORY}/contents/mission-dice-bounds-source-2c46e8.json" -f message="chore: record dice bounds source export [skip ci]" -f content="$content" -f branch="$GITHUB_REF_NAME")
+          if [ -n "$existing_sha" ]; then args+=(-f sha="$existing_sha"); fi
+          gh api "${args[@]}" >/dev/null
