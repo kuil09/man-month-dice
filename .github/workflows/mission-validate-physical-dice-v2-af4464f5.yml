@@ -60,7 +60,7 @@ jobs:
           node --check dice3d.js
           node --check vendor/cannon-es.js
           grep -q "from './vendor/cannon-es.js'" dice3d.js
-          grep -q "createEngravedNumberTexture" dice3d.js
+          grep -q "createEngravedFaceMaps" dice3d.js
           grep -q "readTopFace" dice3d.js
           grep -q "new CANNON.World" dice3d.js
           grep -q "new CANNON.ConvexPolyhedron" dice3d.js
