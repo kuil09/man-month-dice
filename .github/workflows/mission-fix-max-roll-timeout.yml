@@ -66,41 +66,21 @@ jobs:
           npm install --no-save --no-package-lock playwright-core@1.55.0 >/dev/null
           cat > smoke.mjs <<'NODE'
           import { chromium } from 'playwright-core';
-          const browser = await chromium.launch({
-            executablePath: process.env.CHROME_BIN,
-            headless: true,
-            args: ['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist'],
-          });
+          const browser = await chromium.launch({ executablePath: process.env.CHROME_BIN, headless: true, args: ['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist'] });
           const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
           const errors = [];
           page.on('pageerror', e => errors.push(e.message));
           await page.goto('http://127.0.0.1:4173/', { waitUntil: 'networkidle' });
           await page.waitForFunction(() => document.querySelector('#diceTray')?.dataset.renderer === 'three-cannon');
-          await page.evaluate(() => {
-            for (const input of document.querySelectorAll('[data-factor]')) {
-              input.value = '4';
-              input.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-          });
+          await page.evaluate(() => { for (const input of document.querySelectorAll('[data-factor]')) { input.value = '4'; input.dispatchEvent(new Event('input', { bubbles: true })); } });
           await page.waitForTimeout(150);
           for (let run = 0; run < 3; run += 1) {
             const started = Date.now();
             await page.click('#rollButton');
-            await page.waitForFunction(() => {
-              const tray = document.querySelector('#diceTray');
-              const button = document.querySelector('#rollButton');
-              return Boolean(tray?.dataset.lastRoll) && !button?.disabled && !tray.classList.contains('is-rolling');
-            }, null, { timeout: 16000 });
+            await page.waitForFunction(() => { const tray = document.querySelector('#diceTray'); const button = document.querySelector('#rollButton'); return Boolean(tray?.dataset.lastRoll) && !button?.disabled && !tray.classList.contains('is-rolling'); }, null, { timeout: 16000 });
             const elapsed = Date.now() - started;
-            const state = await page.evaluate(() => ({
-              total: Number(document.querySelector('#diceTray')?.dataset.lastRoll || 0),
-              button: document.querySelector('#rollButton')?.textContent,
-              rolling: document.querySelector('#diceTray')?.classList.contains('is-rolling'),
-              debug: window.__MAN_MONTH_DICE_DEBUG__?.(),
-            }));
-            if (elapsed > 14500 || state.total <= 0 || state.rolling || state.button !== 'ROLL THE ESTIMATE') {
-              throw new Error(`max roll did not recover: ${JSON.stringify({ elapsed, state })}`);
-            }
+            const state = await page.evaluate(() => ({ total: Number(document.querySelector('#diceTray')?.dataset.lastRoll || 0), button: document.querySelector('#rollButton')?.textContent, rolling: document.querySelector('#diceTray')?.classList.contains('is-rolling'), debug: window.__MAN_MONTH_DICE_DEBUG__?.() }));
+            if (elapsed > 14500 || state.total <= 0 || state.rolling || state.button !== 'ROLL THE ESTIMATE') throw new Error(`max roll did not recover: ${JSON.stringify({ elapsed, state })}`);
             console.log(JSON.stringify({ run, elapsed, total: state.total, dice: state.debug?.dice?.length, physicsSteps: state.debug?.physicsSteps }));
           }
           if (errors.length) throw new Error(errors.join(' | '));
