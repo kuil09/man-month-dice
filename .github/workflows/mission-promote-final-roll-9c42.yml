@@ -1,0 +1,76 @@
+name: mission-promote-final-roll-9c42
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/mission-promote-final-roll-9c42.yml
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fetch and verify validated source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin feat/final-nonblocking-roll-8a71f6
+          source_commit="$(git rev-parse origin/feat/final-nonblocking-roll-8a71f6)"
+          git show "${source_commit}:mission-final-roll-validation-8a71f6.json" > /tmp/validation.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/validation.json', encoding='utf-8') as handle:
+              data = json.load(handle)
+          required = [
+              'bounded_total_roll',
+              'per_batch_watchdog',
+              'event_loop_yielding',
+              'shared_texture_cache',
+              'independent_physics_shapes',
+              'convex_physical_faces',
+              'retired_settled_bodies',
+              'desktop_max_risk',
+              'mobile_max_risk',
+          ]
+          failed = [key for key in required if data.get(key) != 'success']
+          if failed:
+              raise SystemExit(f'validation is incomplete: {failed}')
+          if str(data.get('run_id')) != '32438033026':
+              raise SystemExit(f'unexpected validation run: {data.get("run_id")}')
+          PY
+          printf '%s\n' "$source_commit" > /tmp/source-commit
+
+      - name: Promote production files
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit="$(cat /tmp/source-commit)"
+          git checkout "$source_commit" -- dice3d.js app.js README.POC.md mission-final-roll-validation-8a71f6.json
+          node --input-type=module --check < dice3d.js
+          node --input-type=module --check < app.js
+          grep -q 'MAX_TOTAL_ROLL_TIME_MS = 6800' dice3d.js
+          grep -q 'convexHullFaceIndices' dice3d.js
+          grep -q 'shape: createCannonShape(template.model, item.sides)' dice3d.js
+          grep -q 'cancelActiveRoll' app.js
+          cat > mission-final-roll-promotion-8a71f6.json <<EOF
+          {
+            "validated_source_commit": "$source_commit",
+            "validation_run_id": "32438033026",
+            "state": "promoted"
+          }
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dice3d.js app.js README.POC.md mission-final-roll-validation-8a71f6.json mission-final-roll-promotion-8a71f6.json
+          git diff --cached --check
+          git commit -m 'fix: make maximum-risk dice rolls bounded and non-blocking'
+          git push origin HEAD:main
