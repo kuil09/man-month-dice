@@ -1,0 +1,37 @@
+name: mission-export-current-source-9c42
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/mission-export-current-source-9c42.yml
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '{\n  "run_id": "%s",\n  "source_commit": "%s"\n}\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" > /tmp/run.json
+          content="$(base64 -w0 /tmp/run.json)"
+          sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/mission-export-current-source-9c42.json?ref=main" --jq .sha 2>/dev/null || true)"
+          args=(--method PUT "repos/${GITHUB_REPOSITORY}/contents/mission-export-current-source-9c42.json" -f message="chore: record source export [skip ci]" -f content="$content" -f branch="main")
+          if [ -n "$sha" ]; then args+=(-f sha="$sha"); fi
+          gh api "${args[@]}" >/dev/null
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - name: Pack source
+        run: tar --exclude=.git --exclude=_site -czf /tmp/man-month-dice-current-source-9c42.tgz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: man-month-dice-current-source-9c42
+          path: /tmp/man-month-dice-current-source-9c42.tgz
+          retention-days: 1
