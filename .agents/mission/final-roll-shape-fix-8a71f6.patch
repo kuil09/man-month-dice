@@ -1,0 +1,19 @@
+--- a/dice3d.js
++++ b/dice3d.js
+@@ -504,7 +504,6 @@
+       model,
+       geometry,
+       edgeGeometry,
+-      shape: createCannonShape(model, sides),
+       radius: Math.max(...model.vertices.map((vertex) => vertex.length())),
+     };
+     this.dieTemplateCache.set(sides, template);
+@@ -570,7 +569,7 @@
+       item: { ...item },
+       vertices: template.model.vertices,
+       faces: template.model.faces,
+-      shape: template.shape,
++      shape: createCannonShape(template.model, item.sides),
+       radius: template.radius,
+       body: null,
+       request: null,
