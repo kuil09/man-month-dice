@@ -1,3 +1,0 @@
-validated_source_commit=a859e4996bd1ac88e2078c47049f45179a3dd9a0
-validation_run_id=32438033026
-production_commit=11dd1b5c45a4fee989cb3964c1597a7c94c83abc
