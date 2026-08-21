@@ -1,0 +1,787 @@
+name: mission-final-nonblocking-roll-8a71f6
+
+on:
+  push:
+    branches: [feat/final-nonblocking-roll-8a71f6]
+    paths:
+      - .github/workflows/mission-final-nonblocking-roll-8a71f6.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record validation run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '{\n  "state": "started",\n  "source_commit": "%s",\n  "run_id": "%s",\n  "run_attempt": "%s"\n}\n' \
+            "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > /tmp/run.json
+          content="$(base64 -w0 /tmp/run.json)"
+          sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/mission-final-roll-run-8a71f6.json?ref=feat/final-nonblocking-roll-8a71f6" --jq .sha 2>/dev/null || true)"
+          args=(--method PUT "repos/${GITHUB_REPOSITORY}/contents/mission-final-roll-run-8a71f6.json" \
+            -f message="chore: record final roll validation run [skip ci]" \
+            -f content="$content" -f branch="feat/final-nonblocking-roll-8a71f6")
+          if [ -n "$sha" ]; then args+=(-f sha="$sha"); fi
+          gh api "${args[@]}" >/dev/null
+
+      - name: Checkout feature branch
+        uses: actions/checkout@v6
+        with:
+          ref: feat/final-nonblocking-roll-8a71f6
+
+      - name: Apply final non-blocking lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'missing anchor: {label}')
+              return text.replace(old, new, 1)
+
+          def replace_between(text, start, end, replacement, label):
+              start_index = text.find(start)
+              if start_index < 0:
+                  raise SystemExit(f'missing start anchor: {label}')
+              end_index = text.find(end, start_index)
+              if end_index < 0:
+                  raise SystemExit(f'missing end anchor: {label}')
+              return text[:start_index] + replacement + text[end_index:]
+
+          dice_path = Path('dice3d.js')
+          dice = dice_path.read_text()
+          dice = replace_once(
+              dice,
+              "const MAX_ROLL_TIME_MS = 9000;\nconst STABLE_TIME_MS = 620;\nconst LINEAR_SLEEP_THRESHOLD_SQ = 0.17 ** 2;\nconst ANGULAR_SLEEP_THRESHOLD_SQ = 0.22 ** 2;\nconst MAX_EXPLOSION_DEPTH = 5;",
+              "const MAX_BATCH_ROLL_TIME_MS = 2200;\nconst MAX_TOTAL_ROLL_TIME_MS = 6800;\nconst MIN_ANIMATED_BATCH_TIME_MS = 760;\nconst SETTLE_WATCHDOG_GRACE_MS = 120;\nconst FORCE_SETTLE_STEPS = 48;\nconst FAST_FORWARD_STEPS = 240;\nconst FAST_FORWARD_CHUNK_SIZE = 24;\nconst MAX_TOTAL_PHYSICAL_DICE = 24;\nconst STABLE_TIME_MS = 460;\nconst LINEAR_SLEEP_THRESHOLD_SQ = 0.17 ** 2;\nconst ANGULAR_SLEEP_THRESHOLD_SQ = 0.22 ** 2;\nconst MAX_EXPLOSION_DEPTH = 3;\nconst FACE_TEXTURE_SIZE = 256;",
+              'roll constants',
+          )
+          dice = replace_once(
+              dice,
+              "    this.stageResources = [];\n    this.fitBounds = new THREE.Box3();",
+              "    this.stageResources = [];\n    this.faceMapCache = new Map();\n    this.dieTemplateCache = new Map();\n    this.materialTemplateCache = new Map();\n    this.rollLifecycle = 'idle';\n    this.lastRollDuration = 0;\n    this.fitBounds = new THREE.Box3();",
+              'constructor caches',
+          )
+
+          roll_method = r'''  async roll(pool) {
+    this.#abortRoll();
+    this.#clearDice();
+    const generation = ++this.rollGeneration;
+    const startedAt = performance.now();
+    const rollDeadline = startedAt + MAX_TOTAL_ROLL_TIME_MS;
+    this.physicsSteps = 0;
+    this.containmentCorrections = 0;
+    this.rollLifecycle = 'running';
+    this.lastRollDuration = 0;
+    this.container.dataset.containmentCorrections = '0';
+    this.container.dataset.rollLifecycle = this.rollLifecycle;
+    this.container.classList.remove('is-empty');
+    this.container.classList.add('is-rolling');
+
+    try {
+      if (!pool.length) {
+        this.container.dataset.physicsSteps = '0';
+        this.container.dataset.lastTopFaces = '';
+        this.rollLifecycle = 'completed';
+        return { total: 0, items: [], detail: '0' };
+      }
+
+      const results = pool.map((die) => ({
+        ...die,
+        parts: [],
+        total: 0,
+        exploded: false,
+        truncated: false,
+      }));
+      let pending = pool.map((die, rootIndex) => ({
+        ...die,
+        rootIndex,
+        depth: 0,
+        isExplosion: false,
+      }));
+      const settledValues = [];
+
+      while (pending.length) {
+        if (generation !== this.rollGeneration) {
+          throw new DOMException('Dice roll was cancelled.', 'AbortError');
+        }
+
+        const remainingSlots = Math.max(0, MAX_TOTAL_PHYSICAL_DICE - this.dice.length);
+        if (!remainingSlots) {
+          for (const request of pending) results[request.rootIndex].truncated = true;
+          break;
+        }
+        if (pending.length > remainingSlots) {
+          for (const request of pending.slice(remainingSlots)) {
+            results[request.rootIndex].truncated = true;
+          }
+          pending = pending.slice(0, remainingSlots);
+        }
+
+        const batch = this.#spawnBatch(pending);
+        await this.#settleBatch(batch, generation, rollDeadline);
+        if (generation !== this.rollGeneration) {
+          throw new DOMException('Dice roll was cancelled.', 'AbortError');
+        }
+
+        const next = [];
+        for (const entry of batch) {
+          const value = readTopFace(entry);
+          const result = results[entry.request.rootIndex];
+          result.parts.push(value);
+          result.total += value;
+          settledValues.push(value);
+
+          const exploded = Boolean(entry.request.explodes && value === entry.request.sides);
+          if (exploded) {
+            result.exploded = true;
+            this.#markExploded(entry);
+            if (entry.request.depth < MAX_EXPLOSION_DEPTH) {
+              next.push({
+                sides: entry.request.sides,
+                explodes: true,
+                rootIndex: entry.request.rootIndex,
+                depth: entry.request.depth + 1,
+                isExplosion: true,
+              });
+            } else {
+              result.truncated = true;
+            }
+          }
+          this.#retireBody(entry);
+        }
+        pending = next;
+      }
+
+      this.container.dataset.physicsSteps = String(this.physicsSteps);
+      this.container.dataset.lastTopFaces = settledValues.join(',');
+      this.#updateDiagnostics();
+      const total = results.reduce((sum, item) => sum + item.total, 0);
+      const detail = results.map((item) => {
+        const values = item.parts.join(' + ') || '0';
+        return item.truncated ? `${values} + …` : values;
+      }).join('  |  ') || '0';
+      this.#fitCameraToVisibleBounds();
+      this.rollLifecycle = 'completed';
+      return { total, items: results, detail };
+    } catch (error) {
+      this.rollLifecycle = error?.name === 'AbortError' ? 'cancelled' : 'failed';
+      throw error;
+    } finally {
+      if (generation === this.rollGeneration) this.container.classList.remove('is-rolling');
+      this.lastRollDuration = performance.now() - startedAt;
+      this.container.dataset.rollLifecycle = this.rollLifecycle;
+      this.container.dataset.rollDurationMs = this.lastRollDuration.toFixed(1);
+    }
+  }
+
+'''
+          dice = replace_between(dice, '  async roll(pool) {\n', '  debugState() {\n', roll_method, 'roll method')
+          dice = replace_once(
+              dice,
+              "      cameraDistance: Number(this.cameraFitDistance.toFixed(4)),\n      allDiceInsideViewport:",
+              "      cameraDistance: Number(this.cameraFitDistance.toFixed(4)),\n      rollLifecycle: this.rollLifecycle,\n      lastRollDuration: Number(this.lastRollDuration.toFixed(1)),\n      activeRoll: Boolean(this.rollState),\n      cache: {\n        faceMaps: this.faceMapCache.size,\n        dieTemplates: this.dieTemplateCache.size,\n        materialTemplates: this.materialTemplateCache.size,\n      },\n      allDiceInsideViewport:",
+              'debug lifecycle',
+          )
+          dice = replace_once(
+              dice,
+              "  announce(text) {\n",
+              "  cancelActiveRoll(reason = 'Dice roll cancelled by watchdog.') {\n    this.#abortRoll(new DOMException(reason, 'AbortError'));\n  }\n\n  announce(text) {\n",
+              'public cancellation',
+          )
+          dice = replace_once(
+              dice,
+              "    this.#clearDice();\n    for (const resource of this.stageResources) resource.dispose?.();\n    this.renderer.dispose();",
+              "    this.#clearDice();\n    for (const material of this.materialTemplateCache.values()) material.dispose();\n    for (const maps of this.faceMapCache.values()) {\n      maps.color.dispose();\n      maps.bump.dispose();\n    }\n    for (const template of this.dieTemplateCache.values()) {\n      template.geometry.dispose();\n      template.edgeGeometry.dispose();\n    }\n    this.materialTemplateCache.clear();\n    this.faceMapCache.clear();\n    this.dieTemplateCache.clear();\n    for (const resource of this.stageResources) resource.dispose?.();\n    this.renderer.dispose();",
+              'cache disposal',
+          )
+          dice = replace_once(
+              dice,
+              "    this.onVisibilityChange = () => {\n      if (!document.hidden) {\n        this.lastFrame = performance.now();\n        this.#startLoop();\n      }\n    };",
+              "    this.onVisibilityChange = () => {\n      if (document.hidden) {\n        if (this.rollState) this.#forceCompleteSettle(this.rollState);\n        return;\n      }\n      this.lastFrame = performance.now();\n      this.#startLoop();\n    };",
+              'visibility recovery',
+          )
+
+          create_die_block = r'''  #getDieTemplate(sides) {
+    const cached = this.dieTemplateCache.get(sides);
+    if (cached) return cached;
+
+    const sourceGeometry = createGeometry(sides);
+    sourceGeometry.computeVertexNormals();
+    const model = describePolyhedron(sourceGeometry, sides);
+    const geometry = createNumberedGeometry(model);
+    const edgeGeometry = new THREE.EdgesGeometry(sourceGeometry, 18);
+    sourceGeometry.dispose();
+    const template = {
+      model,
+      geometry,
+      edgeGeometry,
+      shape: createCannonShape(model, sides),
+      radius: Math.max(...model.vertices.map((vertex) => vertex.length())),
+    };
+    this.dieTemplateCache.set(sides, template);
+    return template;
+  }
+
+  #getFaceMaps(value) {
+    const cached = this.faceMapCache.get(value);
+    if (cached) return cached;
+    const maps = createEngravedFaceMaps(value);
+    this.faceMapCache.set(value, maps);
+    return maps;
+  }
+
+  #getMaterialTemplate(sides, value) {
+    const key = `${sides}:${value}`;
+    const cached = this.materialTemplateCache.get(key);
+    if (cached) return cached;
+    const baseColor = new THREE.Color(DIE_COLORS[sides] ?? 0xc4b37a);
+    const maps = this.#getFaceMaps(value);
+    const material = new THREE.MeshStandardMaterial({
+      color: baseColor,
+      map: maps.color,
+      bumpMap: maps.bump,
+      bumpScale: 0.075,
+      roughness: 0.42,
+      metalness: 0.08,
+      flatShading: true,
+      emissive: baseColor.clone().multiplyScalar(0.035),
+      emissiveIntensity: 0.85,
+    });
+    this.materialTemplateCache.set(key, material);
+    return material;
+  }
+
+  #createDie(item, index) {
+    const template = this.#getDieTemplate(item.sides);
+    const baseColor = new THREE.Color(DIE_COLORS[item.sides] ?? 0xc4b37a);
+    const materials = template.model.faces.map((face) => (
+      this.#getMaterialTemplate(item.sides, face.value).clone()
+    ));
+    const mesh = new THREE.Mesh(template.geometry, materials);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    const edgeMaterial = new THREE.LineBasicMaterial({
+      color: baseColor.clone().lerp(new THREE.Color(0xfff4d7), 0.34),
+      transparent: true,
+      opacity: 0.48,
+    });
+    mesh.add(new THREE.LineSegments(template.edgeGeometry, edgeMaterial));
+
+    const group = new THREE.Group();
+    group.add(mesh);
+    group.userData.dieIndex = index;
+    return {
+      group,
+      mesh,
+      geometry: template.geometry,
+      materials,
+      edgeGeometry: template.edgeGeometry,
+      edgeMaterial,
+      item: { ...item },
+      vertices: template.model.vertices,
+      faces: template.model.faces,
+      shape: template.shape,
+      radius: template.radius,
+      body: null,
+      request: null,
+      inWorld: false,
+    };
+  }
+
+'''
+          dice = replace_between(dice, '  #createDie(item, index) {\n', '  #spawnBatch(requests) {\n', create_die_block, 'cached die creation')
+          dice = replace_once(
+              dice,
+              "      this.world.addBody(body);\n      this.diceRoot.add(entry.group);",
+              "      this.world.addBody(body);\n      entry.inWorld = true;\n      this.diceRoot.add(entry.group);",
+              'body world tracking',
+          )
+
+          settle_block = r'''  async #settleBatch(batch, generation, rollDeadline) {
+    const startedAt = performance.now();
+    const batchDeadline = Math.min(startedAt + MAX_BATCH_ROLL_TIME_MS, rollDeadline);
+    const remaining = batchDeadline - startedAt;
+    if (this.prefersReducedMotion.matches || remaining <= MIN_ANIMATED_BATCH_TIME_MS) {
+      await this.#fastForwardBatch(batch, generation);
+      return;
+    }
+
+    await new Promise((resolve, reject) => {
+      const state = {
+        generation,
+        batch,
+        startedAt,
+        deadline: batchDeadline,
+        stableSince: 0,
+        watchdogId: 0,
+        resolve,
+        reject,
+      };
+      this.rollState = state;
+      state.watchdogId = window.setTimeout(
+        () => this.#forceCompleteSettle(state),
+        Math.max(0, batchDeadline - performance.now()) + SETTLE_WATCHDOG_GRACE_MS,
+      );
+    });
+  }
+
+  async #fastForwardBatch(batch, generation) {
+    let stableFrames = 0;
+    for (let step = 0; step < FAST_FORWARD_STEPS; step += 1) {
+      if (generation !== this.rollGeneration) {
+        throw new DOMException('Dice roll was cancelled.', 'AbortError');
+      }
+      this.world.step(FIXED_TIME_STEP);
+      this.physicsSteps += 1;
+      this.#containBodies(batch);
+      if (bodiesAreQuiet(batch)) stableFrames += 1;
+      else stableFrames = 0;
+      if (stableFrames > 32) break;
+      if ((step + 1) % FAST_FORWARD_CHUNK_SIZE === 0) {
+        this.#syncAllBodies();
+        this.#fitCameraToVisibleBounds();
+        await yieldToBrowser();
+      }
+    }
+    this.#sleepBatch(batch);
+  }
+
+  #forceCompleteSettle(state) {
+    if (this.rollState !== state) return;
+    for (let step = 0; step < FORCE_SETTLE_STEPS; step += 1) {
+      if (bodiesAreQuiet(state.batch)) break;
+      this.world.step(FIXED_TIME_STEP);
+      this.physicsSteps += 1;
+      this.#containBodies(state.batch);
+    }
+    this.#completeSettle(state);
+  }
+
+  #sleepBatch(batch) {
+    for (const entry of batch) {
+      entry.body.velocity.setZero();
+      entry.body.angularVelocity.setZero();
+      entry.body.force.setZero();
+      entry.body.torque.setZero();
+      entry.body.sleep();
+    }
+    this.#syncAllBodies();
+    this.#fitCameraToVisibleBounds();
+  }
+
+  #updatePhysics(now, delta) {
+    if (!this.rollState) return;
+    const state = this.rollState;
+    this.world.step(FIXED_TIME_STEP, Math.min(delta, 0.1), MAX_SUB_STEPS);
+    this.physicsSteps += 1;
+    this.#containBodies(state.batch);
+    this.#syncAllBodies();
+    this.#fitCameraToVisibleBounds();
+
+    if (bodiesAreQuiet(state.batch)) {
+      if (!state.stableSince) state.stableSince = now;
+      if (now - state.stableSince >= STABLE_TIME_MS) {
+        this.#completeSettle(state);
+        return;
+      }
+    } else {
+      state.stableSince = 0;
+    }
+
+    if (now >= state.deadline) this.#forceCompleteSettle(state);
+  }
+
+  #completeSettle(state) {
+    if (this.rollState !== state) return;
+    window.clearTimeout(state.watchdogId);
+    this.#sleepBatch(state.batch);
+    this.rollState = null;
+    state.resolve();
+  }
+
+  #failActiveRoll(error) {
+    const state = this.rollState;
+    if (!state) return;
+    window.clearTimeout(state.watchdogId);
+    this.rollState = null;
+    state.reject(error);
+  }
+
+  #retireBody(entry) {
+    const body = entry.body;
+    if (!body) return;
+    body.velocity.setZero();
+    body.angularVelocity.setZero();
+    body.force.setZero();
+    body.torque.setZero();
+    body.sleep();
+    if (entry.inWorld) {
+      this.world.removeBody(body);
+      entry.inWorld = false;
+    }
+    body.mass = 0;
+    body.type = CANNON.Body.STATIC;
+    body.updateMassProperties();
+    body.aabbNeedsUpdate = true;
+  }
+
+'''
+          dice = replace_between(dice, '  async #settleBatch(batch, generation) {\n', '  #markExploded(entry) {\n', settle_block, 'bounded settle lifecycle')
+          dice = replace_once(
+              dice,
+              "  #abortRoll() {\n    this.rollGeneration += 1;\n    if (this.rollState) {\n      const pending = this.rollState;\n      this.rollState = null;\n      pending.resolve();\n    }\n    this.container.classList.remove('is-rolling');\n  }",
+              "  #abortRoll(reason = new DOMException('Dice roll was cancelled.', 'AbortError')) {\n    this.rollGeneration += 1;\n    if (this.rollState) {\n      const pending = this.rollState;\n      window.clearTimeout(pending.watchdogId);\n      this.rollState = null;\n      pending.reject(reason);\n    }\n    this.container.classList.remove('is-rolling');\n  }",
+              'abort lifecycle',
+          )
+          clear_block = r'''  #clearDice() {
+    for (const entry of this.dice) {
+      if (entry.body && entry.inWorld) this.world?.removeBody(entry.body);
+      entry.inWorld = false;
+      this.diceRoot.remove(entry.group);
+      for (const material of entry.materials) material.dispose();
+      entry.edgeMaterial.dispose();
+    }
+    this.dice.length = 0;
+    this.#updateDiagnostics();
+  }
+
+'''
+          dice = replace_between(dice, '  #clearDice() {\n', '  #resize() {\n', clear_block, 'shared-resource clear')
+          loop_block = r'''  #startLoop() {
+    if (this.disposed || this.frameHandle || document.hidden) return;
+    const tick = (now) => {
+      this.frameHandle = 0;
+      if (this.disposed || document.hidden) return;
+      try {
+        const delta = Math.min(0.05, Math.max(0, (now - this.lastFrame) / 1000));
+        this.lastFrame = now;
+        this.pointer.lerp(this.pointerTarget, 0.07);
+        this.#updatePhysics(now, delta);
+        this.camera.lookAt(this.cameraTarget);
+        this.renderer.render(this.scene, this.camera);
+      } catch (error) {
+        console.error('Dice render loop failed.', error);
+        this.#failActiveRoll(error);
+        return;
+      }
+      this.frameHandle = requestAnimationFrame(tick);
+    };
+    this.frameHandle = requestAnimationFrame(tick);
+  }
+'''
+          dice = replace_between(dice, '  #startLoop() {\n', '}\n\nfunction setBoxCorners', loop_block + '}\n\n', 'render loop guard')
+
+          texture_function = r'''function createEngravedFaceMaps(value) {
+  const size = FACE_TEXTURE_SIZE;
+  const logicalSize = 512;
+  const scale = size / logicalSize;
+  const text = String(value);
+  const fontSize = text.length > 1 ? 188 : 238;
+  const colorCanvas = document.createElement('canvas');
+  const bumpCanvas = document.createElement('canvas');
+  colorCanvas.width = colorCanvas.height = size;
+  bumpCanvas.width = bumpCanvas.height = size;
+  const color = colorCanvas.getContext('2d');
+  const bump = bumpCanvas.getContext('2d');
+  if (!color || !bump) throw new Error('Canvas 2D context is unavailable.');
+  color.scale(scale, scale);
+  bump.scale(scale, scale);
+
+  color.fillStyle = '#f4f1e7';
+  color.fillRect(0, 0, logicalSize, logicalSize);
+  const glaze = color.createRadialGradient(210, 180, 20, 256, 256, 350);
+  glaze.addColorStop(0, 'rgba(255,255,255,0.18)');
+  glaze.addColorStop(1, 'rgba(90,73,44,0.08)');
+  color.fillStyle = glaze;
+  color.fillRect(0, 0, logicalSize, logicalSize);
+
+  for (const context of [color, bump]) {
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.font = `900 ${fontSize}px Georgia, 'Times New Roman', serif`;
+    context.lineJoin = 'round';
+  }
+
+  color.fillStyle = 'rgba(255, 252, 230, 0.76)';
+  color.fillText(text, 250, 247);
+  color.fillStyle = 'rgba(25, 23, 18, 0.96)';
+  color.fillText(text, 258, 260);
+  color.lineWidth = 3;
+  color.strokeStyle = 'rgba(5, 5, 4, 0.42)';
+  color.strokeText(text, 258, 260);
+
+  bump.fillStyle = '#999999';
+  bump.fillRect(0, 0, logicalSize, logicalSize);
+  bump.fillStyle = '#181818';
+  bump.fillText(text, 256, 256);
+  bump.lineWidth = 7;
+  bump.strokeStyle = '#050505';
+  bump.strokeText(text, 256, 256);
+
+  if (value === 6 || value === 9) {
+    const underlineY = 256 + fontSize * 0.38;
+    const underlineWidth = fontSize * 0.34;
+    color.lineCap = bump.lineCap = 'round';
+    color.lineWidth = 10;
+    color.strokeStyle = 'rgba(25, 23, 18, 0.96)';
+    color.beginPath();
+    color.moveTo(256 - underlineWidth / 2, underlineY);
+    color.lineTo(256 + underlineWidth / 2, underlineY);
+    color.stroke();
+    bump.lineWidth = 13;
+    bump.strokeStyle = '#181818';
+    bump.beginPath();
+    bump.moveTo(256 - underlineWidth / 2, underlineY);
+    bump.lineTo(256 + underlineWidth / 2, underlineY);
+    bump.stroke();
+  }
+
+  const colorTexture = new THREE.CanvasTexture(colorCanvas);
+  colorTexture.colorSpace = THREE.SRGBColorSpace;
+  colorTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  colorTexture.magFilter = THREE.LinearFilter;
+  colorTexture.generateMipmaps = true;
+  colorTexture.anisotropy = 4;
+
+  const bumpTexture = new THREE.CanvasTexture(bumpCanvas);
+  bumpTexture.minFilter = THREE.LinearMipmapLinearFilter;
+  bumpTexture.magFilter = THREE.LinearFilter;
+  bumpTexture.generateMipmaps = true;
+  bumpTexture.anisotropy = 4;
+  return { color: colorTexture, bump: bumpTexture };
+}
+
+'''
+          dice = replace_between(dice, 'function createEngravedFaceMaps(value) {\n', 'function readTopFace(entry) {\n', texture_function, 'cached face maps')
+          dice = replace_once(
+              dice,
+              "function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(maximum, value)); }",
+              "function yieldToBrowser() { return new Promise((resolve) => window.setTimeout(resolve, 0)); }\nfunction clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(maximum, value)); }",
+              'event-loop yield',
+          )
+          dice_path.write_text(dice)
+
+          app_path = Path('app.js')
+          app = app_path.read_text()
+          app = replace_once(app, "const MAX_PHYSICAL_ROLL_MS = 7500;", "const MAX_PHYSICAL_ROLL_MS = 9000;", 'ui timeout')
+          app = replace_once(
+              app,
+              "        'Physical dice roll exceeded its time budget.',\n      );",
+              "        'Physical dice roll exceeded its time budget.',\n        () => dice3D?.cancelActiveRoll('UI watchdog ended an over-budget roll.'),\n      );",
+              'watchdog cancellation',
+          )
+          app = replace_once(app, '  for (let depth = 0; depth < 6; depth += 1) {', '  for (let depth = 0; depth < 4; depth += 1) {', 'fallback explosion cap')
+          old_timeout = '''function withTimeout(promise, milliseconds, message) {\n  let timer = 0;\n  const timeout = new Promise((_, reject) => {\n    timer = window.setTimeout(() => reject(new Error(message)), milliseconds);\n  });\n  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));\n}\n'''
+          new_timeout = '''function withTimeout(promise, milliseconds, message, onTimeout) {\n  let timer = 0;\n  const timeout = new Promise((_, reject) => {\n    timer = window.setTimeout(() => {\n      try { onTimeout?.(); } catch (error) { console.error('Roll watchdog cancellation failed.', error); }\n      const timeoutError = new Error(message);\n      timeoutError.name = 'TimeoutError';\n      reject(timeoutError);\n    }, milliseconds);\n  });\n  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));\n}\n'''
+          app = replace_once(app, old_timeout, new_timeout, 'watchdog helper')
+          app_path.write_text(app)
+
+          readme = Path('README.POC.md')
+          text = readme.read_text()
+          anchor = '- Camera framing is recalculated from the tray and every die on each physics step, while tall collision walls and numerical containment keep every die inside the visible canvas on desktop and mobile.\n'
+          addition = anchor + '- Dice geometry and engraved face textures are cached, settled bodies are removed from later collision batches, and every batch plus the complete exploding-dice chain has a watchdog-backed time budget, so maximum-risk rolls cannot hold the UI indefinitely.\n'
+          if anchor not in text:
+              raise SystemExit('README anchor missing')
+          readme.write_text(text.replace(anchor, addition, 1))
+          PY
+
+          node --check dice3d.js
+          node --check app.js
+          grep -q 'MAX_TOTAL_ROLL_TIME_MS = 6800' dice3d.js
+          grep -q 'faceMapCache = new Map' dice3d.js
+          grep -q '#fastForwardBatch' dice3d.js
+          grep -q 'SETTLE_WATCHDOG_GRACE_MS' dice3d.js
+          grep -q '#retireBody' dice3d.js
+          grep -q 'cancelActiveRoll' dice3d.js
+          grep -q 'UI watchdog ended an over-budget roll' app.js
+          ! grep -q 'material.map?.dispose' dice3d.js
+          git diff --check
+
+      - name: Run maximum-risk browser stress test
+        shell: bash
+        env:
+          OUTPUT_DIR: ${{ github.workspace }}/smoke-output
+          REPORT_PATH: ${{ github.workspace }}/smoke-output/report.json
+        run: |
+          set -euo pipefail
+          rm -rf _site smoke-output /tmp/final-roll-browser
+          mkdir -p _site/vendor smoke-output /tmp/final-roll-browser
+          cp index.html styles.css app.js dice3d.js .nojekyll _site/
+          cp vendor/* _site/vendor/
+          cd /tmp/final-roll-browser
+          npm init -y >/dev/null
+          npm install --no-save --no-package-lock playwright-core@1.55.0 >/dev/null
+          cat > smoke.mjs <<'NODE'
+          import fs from 'node:fs';
+          import { chromium } from 'playwright-core';
+
+          const browser = await chromium.launch({
+            executablePath: process.env.CHROME_BIN,
+            headless: true,
+            args: ['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--enable-webgl','--ignore-gpu-blocklist'],
+          });
+          const scenarios = [
+            { name: 'desktop', width: 1440, height: 1100, runs: 4 },
+            { name: 'mobile', width: 390, height: 844, runs: 3 },
+          ];
+          const report = {};
+
+          for (const scenario of scenarios) {
+            const context = await browser.newContext({ viewport: { width: scenario.width, height: scenario.height }, deviceScaleFactor: 1 });
+            const page = await context.newPage();
+            const errors = [];
+            page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+            page.on('console', (message) => {
+              const url = message.location().url || '';
+              if (message.type() === 'error' && !url.endsWith('/favicon.ico')) errors.push(`console: ${message.text()} @ ${url}`);
+            });
+            await page.goto(`http://127.0.0.1:4173/?scenario=${scenario.name}`, { waitUntil: 'networkidle' });
+            await page.waitForFunction(() => document.querySelector('#diceTray')?.dataset.renderer === 'three-cannon', null, { timeout: 20000 });
+            await page.evaluate(() => {
+              localStorage.clear();
+              window.__ROLL_HEARTBEAT__ = { last: performance.now(), maxGap: 0, count: 0 };
+              window.setInterval(() => {
+                const now = performance.now();
+                const heartbeat = window.__ROLL_HEARTBEAT__;
+                heartbeat.maxGap = Math.max(heartbeat.maxGap, now - heartbeat.last);
+                heartbeat.last = now;
+                heartbeat.count += 1;
+              }, 50);
+            });
+
+            for (let cycle = 0; cycle < 10; cycle += 1) {
+              await page.evaluate((value) => {
+                for (const input of document.querySelectorAll('[data-factor]')) {
+                  input.value = String(value);
+                  input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+              }, cycle % 5);
+            }
+            await page.evaluate(() => {
+              for (const input of document.querySelectorAll('[data-factor]')) {
+                input.value = '4';
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+            });
+            await page.waitForTimeout(250);
+
+            const initial = await page.evaluate(() => window.__MAN_MONTH_DICE_DEBUG__?.());
+            if (!initial || initial.cache.faceMaps > 12 || initial.cache.dieTemplates > 5 || initial.cache.materialTemplates > 40) {
+              throw new Error(`${scenario.name}: cache is unbounded: ${JSON.stringify(initial)}`);
+            }
+
+            const runs = [];
+            for (let run = 0; run < scenario.runs; run += 1) {
+              await page.evaluate(() => {
+                window.__ROLL_HEARTBEAT__.last = performance.now();
+                window.__ROLL_HEARTBEAT__.maxGap = 0;
+                window.__ROLL_HEARTBEAT__.count = 0;
+              });
+              const startedAt = Date.now();
+              await page.click('#rollButton');
+              await page.waitForFunction(() => document.querySelector('#diceTray')?.classList.contains('is-rolling'), null, { timeout: 3000 });
+              await page.waitForFunction(() => {
+                const tray = document.querySelector('#diceTray');
+                const button = document.querySelector('#rollButton');
+                return Boolean(tray?.dataset.lastRoll) && !button?.disabled && !tray.classList.contains('is-rolling');
+              }, null, { timeout: 10000 });
+              const elapsed = Date.now() - startedAt;
+              const state = await page.evaluate(() => ({
+                total: Number(document.querySelector('#diceTray')?.dataset.lastRoll || 0),
+                button: document.querySelector('#rollButton')?.textContent || '',
+                renderer: document.querySelector('#diceTray')?.dataset.renderer || '',
+                physics: document.querySelector('#diceTray')?.dataset.physics || '',
+                rolling: document.querySelector('#diceTray')?.classList.contains('is-rolling') || false,
+                heartbeat: window.__ROLL_HEARTBEAT__,
+                debug: window.__MAN_MONTH_DICE_DEBUG__?.(),
+              }));
+              if (elapsed > 9500 || state.total <= 0 || state.rolling || state.button !== 'ROLL THE ESTIMATE') {
+                throw new Error(`${scenario.name}/${run}: roll did not recover: ${JSON.stringify({ elapsed, state })}`);
+              }
+              if (state.renderer !== 'three-cannon' || state.physics !== 'cannon-es' || state.debug?.rollLifecycle !== 'completed' || state.debug?.activeRoll) {
+                throw new Error(`${scenario.name}/${run}: 3D lifecycle degraded: ${JSON.stringify(state)}`);
+              }
+              if (!state.debug?.allDiceInsideViewport || state.debug?.maxViewportOverflow !== 0) {
+                throw new Error(`${scenario.name}/${run}: dice left viewport: ${JSON.stringify(state.debug)}`);
+              }
+              if (state.heartbeat.maxGap > 1400 || state.heartbeat.count < 2) {
+                throw new Error(`${scenario.name}/${run}: main thread stalled: ${JSON.stringify(state.heartbeat)}`);
+              }
+              if (state.debug.cache.faceMaps > 12 || state.debug.cache.dieTemplates > 5 || state.debug.cache.materialTemplates > 40) {
+                throw new Error(`${scenario.name}/${run}: cache grew without bound: ${JSON.stringify(state.debug.cache)}`);
+              }
+              runs.push({ elapsed, total: state.total, heartbeat: state.heartbeat, debug: state.debug });
+            }
+            if (errors.length) throw new Error(`${scenario.name}: ${errors.join(' | ')}`);
+            await page.screenshot({ path: `${process.env.OUTPUT_DIR}/${scenario.name}.png`, fullPage: true });
+            report[scenario.name] = { viewport: { width: scenario.width, height: scenario.height }, initial, runs, errors };
+            await context.close();
+          }
+
+          fs.writeFileSync(process.env.REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
+          await browser.close();
+          NODE
+          python3 -m http.server 4173 --bind 127.0.0.1 --directory "$GITHUB_WORKSPACE/_site" >/tmp/final-roll-http.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          export CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$CHROME_BIN"
+          node smoke.mjs
+          test -s "$REPORT_PATH"
+          test -s "$OUTPUT_DIR/desktop.png"
+          test -s "$OUTPUT_DIR/mobile.png"
+
+      - name: Publish validated implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          with open('smoke-output/report.json', encoding='utf-8') as handle:
+              browser = json.load(handle)
+          payload = {
+              'validated_source': os.environ['GITHUB_SHA'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'bounded_total_roll': 'success',
+              'per_batch_watchdog': 'success',
+              'event_loop_yielding': 'success',
+              'shared_texture_cache': 'success',
+              'retired_settled_bodies': 'success',
+              'desktop_max_risk': 'success',
+              'mobile_max_risk': 'success',
+              'browser': browser,
+              'recorded_at': datetime.now(timezone.utc).isoformat(),
+          }
+          with open('mission-final-roll-validation-8a71f6.json', 'w', encoding='utf-8') as handle:
+              json.dump(payload, handle, ensure_ascii=False, indent=2)
+              handle.write('\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dice3d.js app.js README.POC.md mission-final-roll-validation-8a71f6.json
+          git diff --cached --check
+          git commit -m 'fix: make maximum-risk rolls non-blocking and bounded'
+          git push origin HEAD:feat/final-nonblocking-roll-8a71f6
+
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-nonblocking-roll-validation-8a71f6
+          path: |
+            smoke-output/
+            /tmp/final-roll-http.log
+          if-no-files-found: warn
+          retention-days: 3
