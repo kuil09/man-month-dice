@@ -1,0 +1,65 @@
+--- a/dice3d.js
++++ b/dice3d.js
+@@ -1073,21 +1073,16 @@
+         unique.push(index);
+       }
+     }
+-    const center = unique.reduce((sum, index) => sum.add(vertices[index]), new THREE.Vector3()).multiplyScalar(1 / unique.length);
+     const normal = group.normal.clone().normalize();
+     const tangent = chooseFaceTangent(normal);
+     const bitangent = normal.clone().cross(tangent).normalize();
+-    unique.sort((leftIndex, rightIndex) => {
+-      const left = vertices[leftIndex].clone().sub(center);
+-      const right = vertices[rightIndex].clone().sub(center);
+-      const leftAngle = Math.atan2(left.dot(bitangent), left.dot(tangent));
+-      const rightAngle = Math.atan2(right.dot(bitangent), right.dot(tangent));
+-      return leftAngle - rightAngle;
+-    });
+-    if (polygonNormal(unique, vertices).dot(normal) < 0) unique.reverse();
+-    const inradius = polygonInradius(unique, vertices, center);
++    const boundary = convexHullFaceIndices(unique, vertices, tangent, bitangent);
++    if (boundary.length < 3) throw new Error('Degenerate polyhedron face.');
++    const center = boundary.reduce((sum, index) => sum.add(vertices[index]), new THREE.Vector3()).multiplyScalar(1 / boundary.length);
++    if (polygonNormal(boundary, vertices).dot(normal) < 0) boundary.reverse();
++    const inradius = polygonInradius(boundary, vertices, center);
+     return {
+-      indices: unique,
++      indices: boundary,
+       center,
+       normal,
+       labelSize: Math.max(0.34, inradius * (sides === 4 || sides === 8 ? 1.28 : 1.46)),
+@@ -1171,6 +1166,34 @@
+   return geometry;
+ }
+ 
++function convexHullFaceIndices(indices, vertices, tangent, bitangent) {
++  const points = indices.map((index) => ({
++    index,
++    x: vertices[index].dot(tangent),
++    y: vertices[index].dot(bitangent),
++  })).sort((left, right) => left.x - right.x || left.y - right.y || left.index - right.index);
++  if (points.length <= 3) return points.map((point) => point.index);
++
++  const cross = (origin, a, b) => (a.x - origin.x) * (b.y - origin.y)
++    - (a.y - origin.y) * (b.x - origin.x);
++  const lower = [];
++  for (const point of points) {
++    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= POSITION_EPSILON) {
++      lower.pop();
++    }
++    lower.push(point);
++  }
++  const upper = [];
++  for (let index = points.length - 1; index >= 0; index -= 1) {
++    const point = points[index];
++    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= POSITION_EPSILON) {
++      upper.pop();
++    }
++    upper.push(point);
++  }
++  return [...lower.slice(0, -1), ...upper.slice(0, -1)].map((point) => point.index);
++}
++
+ function chooseFaceTangent(normal) {
+   const seed = Math.abs(normal.y) < 0.82 ? UP : FACE_FORWARD;
+   return seed.clone().cross(normal).normalize();
