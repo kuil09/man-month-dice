@@ -1,7 +1,7 @@
 import { DiceTray3D } from './dice3d.js';
 
 const STORAGE_KEY = 'man-month-dice:poc:v1';
-const MAX_PHYSICAL_ROLL_MS = 7500;
+const MAX_PHYSICAL_ROLL_MS = 9000;
 const FACTORS = [
   { key: 'novelty', label: '기술/도메인 새로움', low: '익숙함', high: '처음 해봄' },
   { key: 'integration', label: '연동 범위', low: '고립됨', high: '여러 시스템' },
@@ -93,6 +93,7 @@ rollButton.addEventListener('click', async () => {
         dice3D.roll(pool),
         MAX_PHYSICAL_ROLL_MS,
         'Physical dice roll exceeded its time budget.',
+        () => dice3D?.cancelActiveRoll('UI watchdog ended an over-budget roll.'),
       );
     } else {
       roll = rollPool(pool);
@@ -270,7 +271,7 @@ function rollDie(die, random) {
   const parts = [];
   let exploded = false;
   let total = 0;
-  for (let depth = 0; depth < 6; depth += 1) {
+  for (let depth = 0; depth < 4; depth += 1) {
     const value = Math.floor(random() * die.sides) + 1;
     parts.push(value);
     total += value;
@@ -294,10 +295,15 @@ function secureRandom() {
   crypto.getRandomValues(values);
   return values[0] / 4294967296;
 }
-function withTimeout(promise, milliseconds, message) {
+function withTimeout(promise, milliseconds, message, onTimeout) {
   let timer = 0;
   const timeout = new Promise((_, reject) => {
-    timer = window.setTimeout(() => reject(new Error(message)), milliseconds);
+    timer = window.setTimeout(() => {
+      try { onTimeout?.(); } catch (error) { console.error('Roll watchdog cancellation failed.', error); }
+      const timeoutError = new Error(message);
+      timeoutError.name = 'TimeoutError';
+      reject(timeoutError);
+    }, milliseconds);
   });
   return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
 }

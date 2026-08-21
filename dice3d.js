@@ -25,11 +25,19 @@ const CAMERA_WORLD_MARGIN = 0.26;
 const VIEWPORT_LIMIT = 0.985;
 const FIXED_TIME_STEP = 1 / 60;
 const MAX_SUB_STEPS = 5;
-const MAX_ROLL_TIME_MS = 9000;
-const STABLE_TIME_MS = 620;
+const MAX_BATCH_ROLL_TIME_MS = 2200;
+const MAX_TOTAL_ROLL_TIME_MS = 6800;
+const MIN_ANIMATED_BATCH_TIME_MS = 760;
+const SETTLE_WATCHDOG_GRACE_MS = 120;
+const FORCE_SETTLE_STEPS = 48;
+const FAST_FORWARD_STEPS = 240;
+const FAST_FORWARD_CHUNK_SIZE = 24;
+const MAX_TOTAL_PHYSICAL_DICE = 24;
+const STABLE_TIME_MS = 460;
 const LINEAR_SLEEP_THRESHOLD_SQ = 0.17 ** 2;
 const ANGULAR_SLEEP_THRESHOLD_SQ = 0.22 ** 2;
-const MAX_EXPLOSION_DEPTH = 5;
+const MAX_EXPLOSION_DEPTH = 3;
+const FACE_TEXTURE_SIZE = 256;
 const FACE_GROUP_DOT = 0.9995;
 const POSITION_EPSILON = 1e-5;
 const UP = new THREE.Vector3(0, 1, 0);
@@ -55,6 +63,11 @@ export class DiceTray3D {
     this.disposed = false;
     this.frameHandle = 0;
     this.stageResources = [];
+    this.faceMapCache = new Map();
+    this.dieTemplateCache = new Map();
+    this.materialTemplateCache = new Map();
+    this.rollLifecycle = 'idle';
+    this.lastRollDuration = 0;
     this.fitBounds = new THREE.Box3();
     this.fitDieBounds = new THREE.Box3();
     this.fitCorners = Array.from({ length: 8 }, () => new THREE.Vector3());
@@ -127,74 +140,112 @@ export class DiceTray3D {
     this.#abortRoll();
     this.#clearDice();
     const generation = ++this.rollGeneration;
+    const startedAt = performance.now();
+    const rollDeadline = startedAt + MAX_TOTAL_ROLL_TIME_MS;
     this.physicsSteps = 0;
     this.containmentCorrections = 0;
+    this.rollLifecycle = 'running';
+    this.lastRollDuration = 0;
     this.container.dataset.containmentCorrections = '0';
+    this.container.dataset.rollLifecycle = this.rollLifecycle;
     this.container.classList.remove('is-empty');
     this.container.classList.add('is-rolling');
 
-    if (!pool.length) {
-      this.container.classList.remove('is-rolling');
-      this.container.dataset.physicsSteps = '0';
-      this.container.dataset.lastTopFaces = '';
-      return { total: 0, items: [], detail: '0' };
-    }
-
-    const results = pool.map((die) => ({
-      ...die,
-      parts: [],
-      total: 0,
-      exploded: false,
-    }));
-    let pending = pool.map((die, rootIndex) => ({
-      ...die,
-      rootIndex,
-      depth: 0,
-      isExplosion: false,
-    }));
-    const settledValues = [];
-
-    while (pending.length) {
-      if (generation !== this.rollGeneration) throw new DOMException('Dice roll was cancelled.', 'AbortError');
-      const batch = this.#spawnBatch(pending);
-      await this.#settleBatch(batch, generation);
-      if (generation !== this.rollGeneration) throw new DOMException('Dice roll was cancelled.', 'AbortError');
-
-      const next = [];
-      for (const entry of batch) {
-        const value = readTopFace(entry);
-        const result = results[entry.request.rootIndex];
-        result.parts.push(value);
-        result.total += value;
-        settledValues.push(value);
-
-        const exploded = Boolean(entry.request.explodes && value === entry.request.sides);
-        if (exploded) {
-          result.exploded = true;
-          this.#markExploded(entry);
-          if (entry.request.depth < MAX_EXPLOSION_DEPTH) {
-            next.push({
-              sides: entry.request.sides,
-              explodes: true,
-              rootIndex: entry.request.rootIndex,
-              depth: entry.request.depth + 1,
-              isExplosion: true,
-            });
-          }
-        }
-        this.#freezeBody(entry.body);
+    try {
+      if (!pool.length) {
+        this.container.dataset.physicsSteps = '0';
+        this.container.dataset.lastTopFaces = '';
+        this.rollLifecycle = 'completed';
+        return { total: 0, items: [], detail: '0' };
       }
-      pending = next;
-    }
 
-    this.container.classList.remove('is-rolling');
-    this.container.dataset.physicsSteps = String(this.physicsSteps);
-    this.container.dataset.lastTopFaces = settledValues.join(',');
-    this.#updateDiagnostics();
-    const total = results.reduce((sum, item) => sum + item.total, 0);
-    const detail = results.map((item) => item.parts.join(' + ')).join('  |  ') || '0';
-    this.#fitCameraToVisibleBounds();
-    return { total, items: results, detail };
+      const results = pool.map((die) => ({
+        ...die,
+        parts: [],
+        total: 0,
+        exploded: false,
+        truncated: false,
+      }));
+      let pending = pool.map((die, rootIndex) => ({
+        ...die,
+        rootIndex,
+        depth: 0,
+        isExplosion: false,
+      }));
+      const settledValues = [];
+
+      while (pending.length) {
+        if (generation !== this.rollGeneration) {
+          throw new DOMException('Dice roll was cancelled.', 'AbortError');
+        }
+
+        const remainingSlots = Math.max(0, MAX_TOTAL_PHYSICAL_DICE - this.dice.length);
+        if (!remainingSlots) {
+          for (const request of pending) results[request.rootIndex].truncated = true;
+          break;
+        }
+        if (pending.length > remainingSlots) {
+          for (const request of pending.slice(remainingSlots)) {
+            results[request.rootIndex].truncated = true;
+          }
+          pending = pending.slice(0, remainingSlots);
+        }
+
+        const batch = this.#spawnBatch(pending);
+        await this.#settleBatch(batch, generation, rollDeadline);
+        if (generation !== this.rollGeneration) {
+          throw new DOMException('Dice roll was cancelled.', 'AbortError');
+        }
+
+        const next = [];
+        for (const entry of batch) {
+          const value = readTopFace(entry);
+          const result = results[entry.request.rootIndex];
+          result.parts.push(value);
+          result.total += value;
+          settledValues.push(value);
+
+          const exploded = Boolean(entry.request.explodes && value === entry.request.sides);
+          if (exploded) {
+            result.exploded = true;
+            this.#markExploded(entry);
+            if (entry.request.depth < MAX_EXPLOSION_DEPTH) {
+              next.push({
+                sides: entry.request.sides,
+                explodes: true,
+                rootIndex: entry.request.rootIndex,
+                depth: entry.request.depth + 1,
+                isExplosion: true,
+              });
+            } else {
+              result.truncated = true;
+            }
+          }
+          this.#retireBody(entry);
+        }
+        pending = next;
+      }
+
+      this.container.dataset.physicsSteps = String(this.physicsSteps);
+      this.container.dataset.lastTopFaces = settledValues.join(',');
+      this.#updateDiagnostics();
+      const total = results.reduce((sum, item) => sum + item.total, 0);
+      const detail = results.map((item) => {
+        const values = item.parts.join(' + ') || '0';
+        return item.truncated ? `${values} + …` : values;
+      }).join('  |  ') || '0';
+      this.#fitCameraToVisibleBounds();
+      this.rollLifecycle = 'completed';
+      return { total, items: results, detail };
+    } catch (error) {
+      this.rollLifecycle = error?.name === 'AbortError' ? 'cancelled' : 'failed';
+      throw error;
+    } finally {
+      if (generation === this.rollGeneration) this.container.classList.remove('is-rolling');
+      this.lastRollDuration = performance.now() - startedAt;
+      this.container.dataset.rollLifecycle = this.rollLifecycle;
+      this.container.dataset.rollDurationMs = this.lastRollDuration.toFixed(1);
+    }
   }
 
   debugState() {
@@ -230,11 +281,23 @@ export class DiceTray3D {
       physicsSteps: Number(this.container.dataset.physicsSteps || 0),
       containmentCorrections: this.containmentCorrections,
       cameraDistance: Number(this.cameraFitDistance.toFixed(4)),
+      rollLifecycle: this.rollLifecycle,
+      lastRollDuration: Number(this.lastRollDuration.toFixed(1)),
+      activeRoll: Boolean(this.rollState),
+      cache: {
+        faceMaps: this.faceMapCache.size,
+        dieTemplates: this.dieTemplateCache.size,
+        materialTemplates: this.materialTemplateCache.size,
+      },
       allDiceInsideViewport: dice.every((die) => die.insideViewport),
       maxViewportOverflow: Number(Math.max(0, ...dice.map((die) => die.screenBounds.overflow)).toFixed(6)),
       topFaces: this.container.dataset.lastTopFaces || '',
       dice,
     };
+  }
+
+  cancelActiveRoll(reason = 'Dice roll cancelled by watchdog.') {
+    this.#abortRoll(new DOMException(reason, 'AbortError'));
   }
 
   announce(text) {
@@ -252,6 +315,18 @@ export class DiceTray3D {
     this.container.removeEventListener('pointerleave', this.onPointerLeave);
     this.#abortRoll();
     this.#clearDice();
+    for (const material of this.materialTemplateCache.values()) material.dispose();
+    for (const maps of this.faceMapCache.values()) {
+      maps.color.dispose();
+      maps.bump.dispose();
+    }
+    for (const template of this.dieTemplateCache.values()) {
+      template.geometry.dispose();
+      template.edgeGeometry.dispose();
+    }
+    this.materialTemplateCache.clear();
+    this.faceMapCache.clear();
+    this.dieTemplateCache.clear();
     for (const resource of this.stageResources) resource.dispose?.();
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -401,10 +476,12 @@ export class DiceTray3D {
     };
     this.onPointerLeave = () => this.pointerTarget.set(0, 0);
     this.onVisibilityChange = () => {
-      if (!document.hidden) {
-        this.lastFrame = performance.now();
-        this.#startLoop();
+      if (document.hidden) {
+        if (this.rollState) this.#forceCompleteSettle(this.rollState);
+        return;
       }
+      this.lastFrame = performance.now();
+      this.#startLoop();
     };
     this.container.addEventListener('pointermove', this.onPointerMove, { passive: true });
     this.container.addEventListener('pointerleave', this.onPointerLeave, { passive: true });
@@ -413,57 +490,90 @@ export class DiceTray3D {
     this.resizeObserver.observe(this.container);
   }
 
-  #createDie(item, index) {
-    const sourceGeometry = createGeometry(item.sides);
+  #getDieTemplate(sides) {
+    const cached = this.dieTemplateCache.get(sides);
+    if (cached) return cached;
+
+    const sourceGeometry = createGeometry(sides);
     sourceGeometry.computeVertexNormals();
-    const model = describePolyhedron(sourceGeometry, item.sides);
+    const model = describePolyhedron(sourceGeometry, sides);
     const geometry = createNumberedGeometry(model);
-    const baseColor = new THREE.Color(DIE_COLORS[item.sides] ?? 0xc4b37a);
-    const materials = model.faces.map((face) => {
-      const maps = createEngravedFaceMaps(face.value);
-      return new THREE.MeshStandardMaterial({
-        color: baseColor,
-        map: maps.color,
-        bumpMap: maps.bump,
-        bumpScale: 0.075,
-        roughness: 0.42,
-        metalness: 0.08,
-        flatShading: true,
-        emissive: baseColor.clone().multiplyScalar(0.035),
-        emissiveIntensity: 0.85,
-      });
+    const edgeGeometry = new THREE.EdgesGeometry(sourceGeometry, 18);
+    sourceGeometry.dispose();
+    const template = {
+      model,
+      geometry,
+      edgeGeometry,
+      radius: Math.max(...model.vertices.map((vertex) => vertex.length())),
+    };
+    this.dieTemplateCache.set(sides, template);
+    return template;
+  }
+
+  #getFaceMaps(value) {
+    const cached = this.faceMapCache.get(value);
+    if (cached) return cached;
+    const maps = createEngravedFaceMaps(value);
+    this.faceMapCache.set(value, maps);
+    return maps;
+  }
+
+  #getMaterialTemplate(sides, value) {
+    const key = `${sides}:${value}`;
+    const cached = this.materialTemplateCache.get(key);
+    if (cached) return cached;
+    const baseColor = new THREE.Color(DIE_COLORS[sides] ?? 0xc4b37a);
+    const maps = this.#getFaceMaps(value);
+    const material = new THREE.MeshStandardMaterial({
+      color: baseColor,
+      map: maps.color,
+      bumpMap: maps.bump,
+      bumpScale: 0.075,
+      roughness: 0.42,
+      metalness: 0.08,
+      flatShading: true,
+      emissive: baseColor.clone().multiplyScalar(0.035),
+      emissiveIntensity: 0.85,
     });
-    const mesh = new THREE.Mesh(geometry, materials);
+    this.materialTemplateCache.set(key, material);
+    return material;
+  }
+
+  #createDie(item, index) {
+    const template = this.#getDieTemplate(item.sides);
+    const baseColor = new THREE.Color(DIE_COLORS[item.sides] ?? 0xc4b37a);
+    const materials = template.model.faces.map((face) => (
+      this.#getMaterialTemplate(item.sides, face.value).clone()
+    ));
+    const mesh = new THREE.Mesh(template.geometry, materials);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
 
-    const edgeGeometry = new THREE.EdgesGeometry(sourceGeometry, 18);
-    sourceGeometry.dispose();
     const edgeMaterial = new THREE.LineBasicMaterial({
       color: baseColor.clone().lerp(new THREE.Color(0xfff4d7), 0.34),
       transparent: true,
       opacity: 0.48,
     });
-    mesh.add(new THREE.LineSegments(edgeGeometry, edgeMaterial));
+    mesh.add(new THREE.LineSegments(template.edgeGeometry, edgeMaterial));
 
     const group = new THREE.Group();
     group.add(mesh);
     group.userData.dieIndex = index;
-    const shape = createCannonShape(model, item.sides);
     return {
       group,
       mesh,
-      geometry,
+      geometry: template.geometry,
       materials,
-      edgeGeometry,
+      edgeGeometry: template.edgeGeometry,
       edgeMaterial,
       item: { ...item },
-      vertices: model.vertices,
-      faces: model.faces,
-      shape,
-      radius: Math.max(...model.vertices.map((vertex) => vertex.length())),
+      vertices: template.model.vertices,
+      faces: template.model.faces,
+      shape: createCannonShape(template.model, item.sides),
+      radius: template.radius,
       body: null,
       request: null,
+      inWorld: false,
     };
   }
 
@@ -506,6 +616,7 @@ export class DiceTray3D {
       body.wakeUp();
       entry.body = body;
       this.world.addBody(body);
+      entry.inWorld = true;
       this.diceRoot.add(entry.group);
       this.dice.push(entry);
       batch.push(entry);
@@ -526,33 +637,76 @@ export class DiceTray3D {
     );
   }
 
-  async #settleBatch(batch, generation) {
-    if (this.prefersReducedMotion.matches) {
-      let stableFrames = 0;
-      for (let step = 0; step < 720; step += 1) {
-        if (generation !== this.rollGeneration) return;
-        this.world.step(FIXED_TIME_STEP);
-        this.physicsSteps += 1;
-        this.#containBodies(batch);
-        if (bodiesAreQuiet(batch)) stableFrames += 1;
-        else stableFrames = 0;
-        if (stableFrames > 45) break;
-      }
-      for (const entry of batch) entry.body.sleep();
-      this.#syncAllBodies();
-      this.#fitCameraToVisibleBounds();
+  async #settleBatch(batch, generation, rollDeadline) {
+    const startedAt = performance.now();
+    const batchDeadline = Math.min(startedAt + MAX_BATCH_ROLL_TIME_MS, rollDeadline);
+    const remaining = batchDeadline - startedAt;
+    if (this.prefersReducedMotion.matches || remaining <= MIN_ANIMATED_BATCH_TIME_MS) {
+      await this.#fastForwardBatch(batch, generation);
       return;
     }
 
-    await new Promise((resolve) => {
-      this.rollState = {
+    await new Promise((resolve, reject) => {
+      const state = {
         generation,
         batch,
-        startedAt: performance.now(),
+        startedAt,
+        deadline: batchDeadline,
         stableSince: 0,
+        watchdogId: 0,
         resolve,
+        reject,
       };
+      this.rollState = state;
+      state.watchdogId = window.setTimeout(
+        () => this.#forceCompleteSettle(state),
+        Math.max(0, batchDeadline - performance.now()) + SETTLE_WATCHDOG_GRACE_MS,
+      );
     });
+  }
+
+  async #fastForwardBatch(batch, generation) {
+    let stableFrames = 0;
+    for (let step = 0; step < FAST_FORWARD_STEPS; step += 1) {
+      if (generation !== this.rollGeneration) {
+        throw new DOMException('Dice roll was cancelled.', 'AbortError');
+      }
+      this.world.step(FIXED_TIME_STEP);
+      this.physicsSteps += 1;
+      this.#containBodies(batch);
+      if (bodiesAreQuiet(batch)) stableFrames += 1;
+      else stableFrames = 0;
+      if (stableFrames > 32) break;
+      if ((step + 1) % FAST_FORWARD_CHUNK_SIZE === 0) {
+        this.#syncAllBodies();
+        this.#fitCameraToVisibleBounds();
+        await yieldToBrowser();
+      }
+    }
+    this.#sleepBatch(batch);
+  }
+
+  #forceCompleteSettle(state) {
+    if (this.rollState !== state) return;
+    for (let step = 0; step < FORCE_SETTLE_STEPS; step += 1) {
+      if (bodiesAreQuiet(state.batch)) break;
+      this.world.step(FIXED_TIME_STEP);
+      this.physicsSteps += 1;
+      this.#containBodies(state.batch);
+    }
+    this.#completeSettle(state);
+  }
+
+  #sleepBatch(batch) {
+    for (const entry of batch) {
+      entry.body.velocity.setZero();
+      entry.body.angularVelocity.setZero();
+      entry.body.force.setZero();
+      entry.body.torque.setZero();
+      entry.body.sleep();
+    }
+    this.#syncAllBodies();
+    this.#fitCameraToVisibleBounds();
   }
 
   #updatePhysics(now, delta) {
@@ -574,36 +728,41 @@ export class DiceTray3D {
       state.stableSince = 0;
     }
 
-    if (now - state.startedAt >= MAX_ROLL_TIME_MS) {
-      for (const entry of state.batch) {
-        entry.body.velocity.setZero();
-        entry.body.angularVelocity.setZero();
-        entry.body.sleep();
-      }
-      this.#syncAllBodies();
-      this.#completeSettle(state);
-    }
+    if (now >= state.deadline) this.#forceCompleteSettle(state);
   }
 
   #completeSettle(state) {
     if (this.rollState !== state) return;
-    for (const entry of state.batch) entry.body.sleep();
-    this.#syncAllBodies();
-    this.#fitCameraToVisibleBounds();
+    window.clearTimeout(state.watchdogId);
+    this.#sleepBatch(state.batch);
     this.rollState = null;
     state.resolve();
   }
 
-  #freezeBody(body) {
+  #failActiveRoll(error) {
+    const state = this.rollState;
+    if (!state) return;
+    window.clearTimeout(state.watchdogId);
+    this.rollState = null;
+    state.reject(error);
+  }
+
+  #retireBody(entry) {
+    const body = entry.body;
+    if (!body) return;
     body.velocity.setZero();
     body.angularVelocity.setZero();
     body.force.setZero();
     body.torque.setZero();
+    body.sleep();
+    if (entry.inWorld) {
+      this.world.removeBody(body);
+      entry.inWorld = false;
+    }
     body.mass = 0;
     body.type = CANNON.Body.STATIC;
     body.updateMassProperties();
     body.aabbNeedsUpdate = true;
-    body.sleep();
   }
 
   #markExploded(entry) {
@@ -743,27 +902,23 @@ export class DiceTray3D {
     this.container.dataset.cameraDistance = this.cameraFitDistance.toFixed(4);
   }
 
-  #abortRoll() {
+  #abortRoll(reason = new DOMException('Dice roll was cancelled.', 'AbortError')) {
     this.rollGeneration += 1;
     if (this.rollState) {
       const pending = this.rollState;
+      window.clearTimeout(pending.watchdogId);
       this.rollState = null;
-      pending.resolve();
+      pending.reject(reason);
     }
     this.container.classList.remove('is-rolling');
   }
 
   #clearDice() {
     for (const entry of this.dice) {
-      if (entry.body) this.world?.removeBody(entry.body);
+      if (entry.body && entry.inWorld) this.world?.removeBody(entry.body);
+      entry.inWorld = false;
       this.diceRoot.remove(entry.group);
-      entry.geometry.dispose();
-      for (const material of entry.materials) {
-        material.map?.dispose();
-        material.bumpMap?.dispose();
-        material.dispose();
-      }
-      entry.edgeGeometry.dispose();
+      for (const material of entry.materials) material.dispose();
       entry.edgeMaterial.dispose();
     }
     this.dice.length = 0;
@@ -785,12 +940,18 @@ export class DiceTray3D {
     const tick = (now) => {
       this.frameHandle = 0;
       if (this.disposed || document.hidden) return;
-      const delta = Math.min(0.05, Math.max(0, (now - this.lastFrame) / 1000));
-      this.lastFrame = now;
-      this.pointer.lerp(this.pointerTarget, 0.07);
-      this.#updatePhysics(now, delta);
-      this.camera.lookAt(this.cameraTarget);
-      this.renderer.render(this.scene, this.camera);
+      try {
+        const delta = Math.min(0.05, Math.max(0, (now - this.lastFrame) / 1000));
+        this.lastFrame = now;
+        this.pointer.lerp(this.pointerTarget, 0.07);
+        this.#updatePhysics(now, delta);
+        this.camera.lookAt(this.cameraTarget);
+        this.renderer.render(this.scene, this.camera);
+      } catch (error) {
+        console.error('Dice render loop failed.', error);
+        this.#failActiveRoll(error);
+        return;
+      }
       this.frameHandle = requestAnimationFrame(tick);
     };
     this.frameHandle = requestAnimationFrame(tick);
@@ -912,21 +1073,16 @@ function describePolyhedron(geometry, sides) {
         unique.push(index);
       }
     }
-    const center = unique.reduce((sum, index) => sum.add(vertices[index]), new THREE.Vector3()).multiplyScalar(1 / unique.length);
     const normal = group.normal.clone().normalize();
     const tangent = chooseFaceTangent(normal);
     const bitangent = normal.clone().cross(tangent).normalize();
-    unique.sort((leftIndex, rightIndex) => {
-      const left = vertices[leftIndex].clone().sub(center);
-      const right = vertices[rightIndex].clone().sub(center);
-      const leftAngle = Math.atan2(left.dot(bitangent), left.dot(tangent));
-      const rightAngle = Math.atan2(right.dot(bitangent), right.dot(tangent));
-      return leftAngle - rightAngle;
-    });
-    if (polygonNormal(unique, vertices).dot(normal) < 0) unique.reverse();
-    const inradius = polygonInradius(unique, vertices, center);
+    const boundary = convexHullFaceIndices(unique, vertices, tangent, bitangent);
+    if (boundary.length < 3) throw new Error('Degenerate polyhedron face.');
+    const center = boundary.reduce((sum, index) => sum.add(vertices[index]), new THREE.Vector3()).multiplyScalar(1 / boundary.length);
+    if (polygonNormal(boundary, vertices).dot(normal) < 0) boundary.reverse();
+    const inradius = polygonInradius(boundary, vertices, center);
     return {
-      indices: unique,
+      indices: boundary,
       center,
       normal,
       labelSize: Math.max(0.34, inradius * (sides === 4 || sides === 8 ? 1.28 : 1.46)),
@@ -1010,6 +1166,34 @@ function createNumberedGeometry(model) {
   return geometry;
 }
 
+function convexHullFaceIndices(indices, vertices, tangent, bitangent) {
+  const points = indices.map((index) => ({
+    index,
+    x: vertices[index].dot(tangent),
+    y: vertices[index].dot(bitangent),
+  })).sort((left, right) => left.x - right.x || left.y - right.y || left.index - right.index);
+  if (points.length <= 3) return points.map((point) => point.index);
+
+  const cross = (origin, a, b) => (a.x - origin.x) * (b.y - origin.y)
+    - (a.y - origin.y) * (b.x - origin.x);
+  const lower = [];
+  for (const point of points) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= POSITION_EPSILON) {
+      lower.pop();
+    }
+    lower.push(point);
+  }
+  const upper = [];
+  for (let index = points.length - 1; index >= 0; index -= 1) {
+    const point = points[index];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= POSITION_EPSILON) {
+      upper.pop();
+    }
+    upper.push(point);
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)].map((point) => point.index);
+}
+
 function chooseFaceTangent(normal) {
   const seed = Math.abs(normal.y) < 0.82 ? UP : FACE_FORWARD;
   return seed.clone().cross(normal).normalize();
@@ -1035,7 +1219,9 @@ function polygonInradius(indices, vertices, center) {
 }
 
 function createEngravedFaceMaps(value) {
-  const size = 512;
+  const size = FACE_TEXTURE_SIZE;
+  const logicalSize = 512;
+  const scale = size / logicalSize;
   const text = String(value);
   const fontSize = text.length > 1 ? 188 : 238;
   const colorCanvas = document.createElement('canvas');
@@ -1045,14 +1231,16 @@ function createEngravedFaceMaps(value) {
   const color = colorCanvas.getContext('2d');
   const bump = bumpCanvas.getContext('2d');
   if (!color || !bump) throw new Error('Canvas 2D context is unavailable.');
+  color.scale(scale, scale);
+  bump.scale(scale, scale);
 
   color.fillStyle = '#f4f1e7';
-  color.fillRect(0, 0, size, size);
+  color.fillRect(0, 0, logicalSize, logicalSize);
   const glaze = color.createRadialGradient(210, 180, 20, 256, 256, 350);
   glaze.addColorStop(0, 'rgba(255,255,255,0.18)');
   glaze.addColorStop(1, 'rgba(90,73,44,0.08)');
   color.fillStyle = glaze;
-  color.fillRect(0, 0, size, size);
+  color.fillRect(0, 0, logicalSize, logicalSize);
 
   for (const context of [color, bump]) {
     context.textAlign = 'center';
@@ -1070,7 +1258,7 @@ function createEngravedFaceMaps(value) {
   color.strokeText(text, 258, 260);
 
   bump.fillStyle = '#999999';
-  bump.fillRect(0, 0, size, size);
+  bump.fillRect(0, 0, logicalSize, logicalSize);
   bump.fillStyle = '#181818';
   bump.fillText(text, 256, 256);
   bump.lineWidth = 7;
@@ -1202,6 +1390,7 @@ function secureRandom() {
   crypto.getRandomValues(values);
   return values[0] / 4294967296;
 }
+function yieldToBrowser() { return new Promise((resolve) => window.setTimeout(resolve, 0)); }
 function clamp(value, minimum, maximum) { return Math.max(minimum, Math.min(maximum, value)); }
 
 export const __physicsTest = Object.freeze({
