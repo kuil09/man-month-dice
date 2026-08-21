@@ -1,0 +1,2063 @@
+{
+  "validated_source": "362ce5a4bec00bc90ca7921846824b0314f9543f",
+  "run_id": "32438033026",
+  "run_attempt": "1",
+  "bounded_total_roll": "success",
+  "per_batch_watchdog": "success",
+  "event_loop_yielding": "success",
+  "shared_texture_cache": "success",
+  "independent_physics_shapes": "success",
+  "convex_physical_faces": "success",
+  "retired_settled_bodies": "success",
+  "desktop_max_risk": "success",
+  "mobile_max_risk": "success",
+  "browser": {
+    "desktop": {
+      "viewport": {
+        "width": 1440,
+        "height": 1100
+      },
+      "initial": {
+        "renderer": "three-cannon",
+        "physics": "cannon-es",
+        "faceLabels": "surface-material",
+        "numberedFaces": 84,
+        "separateNumberObjects": 0,
+        "physicsBodies": 0,
+        "physicsSteps": 0,
+        "containmentCorrections": 0,
+        "cameraDistance": 12.7201,
+        "rollLifecycle": "idle",
+        "lastRollDuration": 0,
+        "activeRoll": false,
+        "cache": {
+          "faceMaps": 12,
+          "dieTemplates": 2,
+          "materialTemplates": 22
+        },
+        "allDiceInsideViewport": true,
+        "maxViewportOverflow": 0,
+        "topFaces": "",
+        "dice": [
+          {
+            "sides": 12,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": -3.225,
+              "y": 0.8514,
+              "z": -1.01
+            },
+            "screenBounds": {
+              "minX": -0.49965,
+              "maxX": -0.23165,
+              "minY": -0.07749,
+              "maxY": 0.38458,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 12,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": -1.075,
+              "y": 0.8514,
+              "z": -1.01
+            },
+            "screenBounds": {
+              "minX": -0.2931,
+              "maxX": 0.06418,
+              "minY": -0.1919,
+              "maxY": 0.47314,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 10,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": 1.075,
+              "y": 0.7858,
+              "z": -1.01
+            },
+            "screenBounds": {
+              "minX": 0.00223,
+              "maxX": 0.23789,
+              "minY": -0.13884,
+              "maxY": 0.37143,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 12,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": 3.225,
+              "y": 0.8514,
+              "z": -1.01
+            },
+            "screenBounds": {
+              "minX": 0.18252,
+              "maxX": 0.53953,
+              "minY": -0.13721,
+              "maxY": 0.4344,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 12,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": -2.15,
+              "y": 0.8514,
+              "z": 1.01
+            },
+            "screenBounds": {
+              "minX": -0.467,
+              "maxX": -0.06628,
+              "minY": -0.47975,
+              "maxY": 0.2821,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 10,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": 0,
+              "y": 0.7858,
+              "z": 1.01
+            },
+            "screenBounds": {
+              "minX": -0.14949,
+              "maxX": 0.13359,
+              "minY": -0.43871,
+              "maxY": 0.19887,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 12,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": 2.15,
+              "y": 0.8514,
+              "z": 1.01
+            },
+            "screenBounds": {
+              "minX": 0.09719,
+              "maxX": 0.48054,
+              "minY": -0.52692,
+              "maxY": 0.3124,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          }
+        ]
+      },
+      "runs": [
+        {
+          "elapsed": 5077,
+          "total": 55,
+          "detail": "6  |  11  |  6  |  6  |  5  |  1  |  12 + 8",
+          "heartbeat": {
+            "last": 7073.899999999994,
+            "maxGap": 243.89999999999418,
+            "count": 92
+          },
+          "debug": {
+            "renderer": "three-cannon",
+            "physics": "cannon-es",
+            "faceLabels": "surface-material",
+            "numberedFaces": 96,
+            "separateNumberObjects": 0,
+            "physicsBodies": 8,
+            "physicsSteps": 207,
+            "containmentCorrections": 3,
+            "cameraDistance": 27.2487,
+            "rollLifecycle": "completed",
+            "lastRollDuration": 4518.9,
+            "activeRoll": false,
+            "cache": {
+              "faceMaps": 12,
+              "dieTemplates": 2,
+              "materialTemplates": 22
+            },
+            "allDiceInsideViewport": true,
+            "maxViewportOverflow": 0,
+            "topFaces": "6,11,6,6,5,1,12,8",
+            "dice": [
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 6,
+                "position": {
+                  "x": -4.1727,
+                  "y": 0.8851,
+                  "z": 1.7941
+                },
+                "screenBounds": {
+                  "minX": -0.3408,
+                  "maxX": -0.14576,
+                  "minY": -0.26067,
+                  "maxY": 0.08352,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 11,
+                "position": {
+                  "x": 0.1998,
+                  "y": 0.9308,
+                  "z": 1.8009
+                },
+                "screenBounds": {
+                  "minX": -0.07767,
+                  "maxX": 0.10409,
+                  "minY": -0.23972,
+                  "maxY": 0.06943,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 6,
+                "position": {
+                  "x": 1.8192,
+                  "y": 0.7371,
+                  "z": 1.0615
+                },
+                "screenBounds": {
+                  "minX": 0.04975,
+                  "maxX": 0.16028,
+                  "minY": -0.18502,
+                  "maxY": 0.06169,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 6,
+                "position": {
+                  "x": 2.9719,
+                  "y": 0.8338,
+                  "z": -0.3439
+                },
+                "screenBounds": {
+                  "minX": 0.07754,
+                  "maxX": 0.2474,
+                  "minY": -0.10589,
+                  "maxY": 0.16984,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 5,
+                "position": {
+                  "x": -1.8885,
+                  "y": 0.9764,
+                  "z": 1.8926
+                },
+                "screenBounds": {
+                  "minX": -0.18294,
+                  "maxX": -0.04461,
+                  "minY": -0.23957,
+                  "maxY": 0.07278,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 1,
+                "position": {
+                  "x": -1.1178,
+                  "y": 0.9908,
+                  "z": -1.905
+                },
+                "screenBounds": {
+                  "minX": -0.12605,
+                  "maxX": 0.01018,
+                  "minY": 0.00471,
+                  "maxY": 0.24078,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 12,
+                "position": {
+                  "x": 2.5106,
+                  "y": 0.9625,
+                  "z": -2.2118
+                },
+                "screenBounds": {
+                  "minX": 0.06048,
+                  "maxX": 0.19366,
+                  "minY": -0.00104,
+                  "maxY": 0.26857,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 8,
+                "position": {
+                  "x": 2.83,
+                  "y": 0.9528,
+                  "z": -1.5996
+                },
+                "screenBounds": {
+                  "minX": 0.07417,
+                  "maxX": 0.22494,
+                  "minY": -0.01214,
+                  "maxY": 0.23186,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              }
+            ]
+          }
+        },
+        {
+          "elapsed": 4832,
+          "total": 54,
+          "detail": "12 + 7  |  9  |  4  |  8  |  6  |  3  |  5",
+          "heartbeat": {
+            "last": 12123.899999999994,
+            "maxGap": 165.29999999998836,
+            "count": 95
+          },
+          "debug": {
+            "renderer": "three-cannon",
+            "physics": "cannon-es",
+            "faceLabels": "surface-material",
+            "numberedFaces": 96,
+            "separateNumberObjects": 0,
+            "physicsBodies": 8,
+            "physicsSteps": 241,
+            "containmentCorrections": 5,
+            "cameraDistance": 27.2487,
+            "rollLifecycle": "completed",
+            "lastRollDuration": 4459.6,
+            "activeRoll": false,
+            "cache": {
+              "faceMaps": 12,
+              "dieTemplates": 2,
+              "materialTemplates": 22
+            },
+            "allDiceInsideViewport": true,
+            "maxViewportOverflow": 0,
+            "topFaces": "12,9,4,8,6,3,5,7",
+            "dice": [
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 12,
+                "position": {
+                  "x": -3.5844,
+                  "y": 0.922,
+                  "z": -0.8265
+                },
+                "screenBounds": {
+                  "minX": -0.28051,
+                  "maxX": -0.1066,
+                  "minY": -0.07997,
+                  "maxY": 0.20924,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 9,
+                "position": {
+                  "x": -1.5403,
+                  "y": 0.8416,
+                  "z": -0.9985
+                },
+                "screenBounds": {
+                  "minX": -0.16241,
+                  "maxX": 0.00197,
+                  "minY": -0.10409,
+                  "maxY": 0.23435,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 4,
+                "position": {
+                  "x": 2.6114,
+                  "y": 0.7621,
+                  "z": -1.3017
+                },
+                "screenBounds": {
+                  "minX": 0.06951,
+                  "maxX": 0.20605,
+                  "minY": -0.04414,
+                  "maxY": 0.1932,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 8,
+                "position": {
+                  "x": 4.2052,
+                  "y": 0.9864,
+                  "z": -2.0706
+                },
+                "screenBounds": {
+                  "minX": 0.13984,
+                  "maxX": 0.29322,
+                  "minY": 0.00791,
+                  "maxY": 0.25861,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 6,
+                "position": {
+                  "x": -3.8862,
+                  "y": 0.9662,
+                  "z": 1.1669
+                },
+                "screenBounds": {
+                  "minX": -0.30957,
+                  "maxX": -0.13145,
+                  "minY": -0.22567,
+                  "maxY": 0.13177,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 3,
+                "position": {
+                  "x": -1.9003,
+                  "y": 0.7602,
+                  "z": 1.4142
+                },
+                "screenBounds": {
+                  "minX": -0.15929,
+                  "maxX": -0.0582,
+                  "minY": -0.20448,
+                  "maxY": 0.04424,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 5,
+                "position": {
+                  "x": 2.9524,
+                  "y": 0.9449,
+                  "z": 1.9757
+                },
+                "screenBounds": {
+                  "minX": 0.09934,
+                  "maxX": 0.24936,
+                  "minY": -0.28099,
+                  "maxY": 0.08682,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 7,
+                "position": {
+                  "x": -1.6448,
+                  "y": 0.9912,
+                  "z": -0.9847
+                },
+                "screenBounds": {
+                  "minX": -0.17225,
+                  "maxX": -0.00654,
+                  "minY": -0.09059,
+                  "maxY": 0.25307,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              }
+            ]
+          }
+        },
+        {
+          "elapsed": 4509,
+          "total": 61,
+          "detail": "6  |  8  |  5  |  7  |  12 + 9  |  5  |  9",
+          "heartbeat": {
+            "last": 16623.79999999999,
+            "maxGap": 512.1999999999825,
+            "count": 81
+          },
+          "debug": {
+            "renderer": "three-cannon",
+            "physics": "cannon-es",
+            "faceLabels": "surface-material",
+            "numberedFaces": 96,
+            "separateNumberObjects": 0,
+            "physicsBodies": 8,
+            "physicsSteps": 194,
+            "containmentCorrections": 9,
+            "cameraDistance": 27.2487,
+            "rollLifecycle": "completed",
+            "lastRollDuration": 4446.7,
+            "activeRoll": false,
+            "cache": {
+              "faceMaps": 12,
+              "dieTemplates": 2,
+              "materialTemplates": 22
+            },
+            "allDiceInsideViewport": true,
+            "maxViewportOverflow": 0,
+            "topFaces": "6,8,5,7,12,5,9,9",
+            "dice": [
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 6,
+                "position": {
+                  "x": -0.751,
+                  "y": 0.9274,
+                  "z": -0.776
+                },
+                "screenBounds": {
+                  "minX": -0.12235,
+                  "maxX": 0.04219,
+                  "minY": -0.11778,
+                  "maxY": 0.24248,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 8,
+                "position": {
+                  "x": -0.3657,
+                  "y": 0.9571,
+                  "z": 1.4316
+                },
+                "screenBounds": {
+                  "minX": -0.11638,
+                  "maxX": 0.0722,
+                  "minY": -0.24488,
+                  "maxY": 0.12837,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 5,
+                "position": {
+                  "x": 1.2336,
+                  "y": 1.0336,
+                  "z": -0.1355
+                },
+                "screenBounds": {
+                  "minX": 0.00795,
+                  "maxX": 0.1274,
+                  "minY": -0.09494,
+                  "maxY": 0.17401,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 7,
+                "position": {
+                  "x": 2.1297,
+                  "y": 0.969,
+                  "z": 2.3357
+                },
+                "screenBounds": {
+                  "minX": 0.0279,
+                  "maxX": 0.22334,
+                  "minY": -0.30255,
+                  "maxY": 0.06486,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 12,
+                "position": {
+                  "x": -2.9803,
+                  "y": 1.0571,
+                  "z": 1.7634
+                },
+                "screenBounds": {
+                  "minX": -0.26105,
+                  "maxX": -0.09025,
+                  "minY": -0.22727,
+                  "maxY": 0.09621,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 5,
+                "position": {
+                  "x": 0.4849,
+                  "y": 2.2993,
+                  "z": 2.1735
+                },
+                "screenBounds": {
+                  "minX": -0.0449,
+                  "maxX": 0.10634,
+                  "minY": -0.11011,
+                  "maxY": 0.17372,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 9,
+                "position": {
+                  "x": 2.8443,
+                  "y": 0.9548,
+                  "z": -1.4395
+                },
+                "screenBounds": {
+                  "minX": 0.07494,
+                  "maxX": 0.22065,
+                  "minY": -0.0705,
+                  "maxY": 0.26222,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 9,
+                "position": {
+                  "x": 3.7316,
+                  "y": 1.0105,
+                  "z": -2.3556
+                },
+                "screenBounds": {
+                  "minX": 0.11691,
+                  "maxX": 0.26609,
+                  "minY": -0.01274,
+                  "maxY": 0.30357,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              }
+            ]
+          }
+        },
+        {
+          "elapsed": 2340,
+          "total": 38,
+          "detail": "7  |  3  |  3  |  2  |  11  |  6  |  6",
+          "heartbeat": {
+            "last": 18923.79999999999,
+            "maxGap": 515.7999999999884,
+            "count": 37
+          },
+          "debug": {
+            "renderer": "three-cannon",
+            "physics": "cannon-es",
+            "faceLabels": "surface-material",
+            "numberedFaces": 84,
+            "separateNumberObjects": 0,
+            "physicsBodies": 7,
+            "physicsSteps": 81,
+            "containmentCorrections": 4,
+            "cameraDistance": 27.2487,
+            "rollLifecycle": "completed",
+            "lastRollDuration": 2268.9,
+            "activeRoll": false,
+            "cache": {
+              "faceMaps": 12,
+              "dieTemplates": 2,
+              "materialTemplates": 22
+            },
+            "allDiceInsideViewport": true,
+            "maxViewportOverflow": 0,
+            "topFaces": "7,3,3,2,11,6,6",
+            "dice": [
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 7,
+                "position": {
+                  "x": -4.2003,
+                  "y": 0.8757,
+                  "z": 1.1326
+                },
+                "screenBounds": {
+                  "minX": -0.31118,
+                  "maxX": -0.17226,
+                  "minY": -0.17385,
+                  "maxY": 0.06526,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 3,
+                "position": {
+                  "x": -2.6098,
+                  "y": 1.0235,
+                  "z": 0.1164
+                },
+                "screenBounds": {
+                  "minX": -0.22517,
+                  "maxX": -0.06436,
+                  "minY": -0.11476,
+                  "maxY": 0.17109,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 3,
+                "position": {
+                  "x": 1.7815,
+                  "y": 0.7704,
+                  "z": -2.1841
+                },
+                "screenBounds": {
+                  "minX": 0.03759,
+                  "maxX": 0.14499,
+                  "minY": -0.00617,
+                  "maxY": 0.23889,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 2,
+                "position": {
+                  "x": 3.7553,
+                  "y": 0.9777,
+                  "z": -1.8324
+                },
+                "screenBounds": {
+                  "minX": 0.1226,
+                  "maxX": 0.27015,
+                  "minY": -0.02711,
+                  "maxY": 0.25938,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 11,
+                "position": {
+                  "x": -1.9893,
+                  "y": 1.0093,
+                  "z": 2.2046
+                },
+                "screenBounds": {
+                  "minX": -0.20192,
+                  "maxX": -0.02966,
+                  "minY": -0.25866,
+                  "maxY": 0.05754,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 6,
+                "position": {
+                  "x": -0.3173,
+                  "y": 1.0454,
+                  "z": 1.2656
+                },
+                "screenBounds": {
+                  "minX": -0.07725,
+                  "maxX": 0.0422,
+                  "minY": -0.16694,
+                  "maxY": 0.08902,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 6,
+                "position": {
+                  "x": -1.0369,
+                  "y": 0.9822,
+                  "z": -0.7234
+                },
+                "screenBounds": {
+                  "minX": -0.14644,
+                  "maxX": 0.03432,
+                  "minY": -0.08939,
+                  "maxY": 0.21358,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              }
+            ]
+          }
+        }
+      ],
+      "errors": []
+    },
+    "mobile": {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "initial": {
+        "renderer": "three-cannon",
+        "physics": "cannon-es",
+        "faceLabels": "surface-material",
+        "numberedFaces": 84,
+        "separateNumberObjects": 0,
+        "physicsBodies": 0,
+        "physicsSteps": 0,
+        "containmentCorrections": 0,
+        "cameraDistance": 20.5258,
+        "rollLifecycle": "idle",
+        "lastRollDuration": 0,
+        "activeRoll": false,
+        "cache": {
+          "faceMaps": 12,
+          "dieTemplates": 2,
+          "materialTemplates": 22
+        },
+        "allDiceInsideViewport": true,
+        "maxViewportOverflow": 0,
+        "topFaces": "",
+        "dice": [
+          {
+            "sides": 12,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": -3.225,
+              "y": 0.8514,
+              "z": -1.01
+            },
+            "screenBounds": {
+              "minX": -0.57691,
+              "maxX": -0.28227,
+              "minY": -0.04894,
+              "maxY": 0.23727,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 12,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": -1.075,
+              "y": 0.8514,
+              "z": -1.01
+            },
+            "screenBounds": {
+              "minX": -0.35114,
+              "maxX": 0.07559,
+              "minY": -0.12196,
+              "maxY": 0.29926,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 10,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": 1.075,
+              "y": 0.7858,
+              "z": -1.01
+            },
+            "screenBounds": {
+              "minX": 0.00267,
+              "maxX": 0.28134,
+              "minY": -0.0869,
+              "maxY": 0.2388,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 12,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": 3.225,
+              "y": 0.8514,
+              "z": -1.01
+            },
+            "screenBounds": {
+              "minX": 0.21911,
+              "maxX": 0.63403,
+              "minY": -0.0881,
+              "maxY": 0.27176,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 12,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": -2.15,
+              "y": 0.8514,
+              "z": 1.01
+            },
+            "screenBounds": {
+              "minX": -0.53214,
+              "maxX": -0.07387,
+              "minY": -0.28938,
+              "maxY": 0.16922,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 10,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": 0,
+              "y": 0.7858,
+              "z": 1.01
+            },
+            "screenBounds": {
+              "minX": -0.16479,
+              "maxX": 0.154,
+              "minY": -0.26271,
+              "maxY": 0.12042,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          },
+          {
+            "sides": 12,
+            "numberedFaces": 12,
+            "numeralsInSurfaceMaterial": true,
+            "separateNumberObjects": 0,
+            "hasBody": false,
+            "bodyType": null,
+            "sleeping": null,
+            "speed": 0,
+            "angularSpeed": 0,
+            "upwardFace": null,
+            "position": {
+              "x": 2.15,
+              "y": 0.8514,
+              "z": 1.01
+            },
+            "screenBounds": {
+              "minX": 0.11314,
+              "maxX": 0.5219,
+              "minY": -0.3152,
+              "maxY": 0.18894,
+              "overflow": 0,
+              "inside": true
+            },
+            "insideViewport": true
+          }
+        ]
+      },
+      "runs": [
+        {
+          "elapsed": 2330,
+          "total": 40,
+          "detail": "8  |  8  |  5  |  4  |  11  |  2  |  2",
+          "heartbeat": {
+            "last": 3605.3000000000175,
+            "maxGap": 276.8999999999942,
+            "count": 42
+          },
+          "debug": {
+            "renderer": "three-cannon",
+            "physics": "cannon-es",
+            "faceLabels": "surface-material",
+            "numberedFaces": 84,
+            "separateNumberObjects": 0,
+            "physicsBodies": 7,
+            "physicsSteps": 156,
+            "containmentCorrections": 18,
+            "cameraDistance": 26.8881,
+            "rollLifecycle": "completed",
+            "lastRollDuration": 2244.5,
+            "activeRoll": false,
+            "cache": {
+              "faceMaps": 12,
+              "dieTemplates": 2,
+              "materialTemplates": 22
+            },
+            "allDiceInsideViewport": true,
+            "maxViewportOverflow": 0,
+            "topFaces": "8,8,5,4,11,2,2",
+            "dice": [
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 8,
+                "position": {
+                  "x": -3.9024,
+                  "y": 0.8482,
+                  "z": -1.6693
+                },
+                "screenBounds": {
+                  "minX": -0.54044,
+                  "maxX": -0.22788,
+                  "minY": -0.07212,
+                  "maxY": 0.27302,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 8,
+                "position": {
+                  "x": -2.6943,
+                  "y": 0.9719,
+                  "z": 0.9691
+                },
+                "screenBounds": {
+                  "minX": -0.44302,
+                  "maxX": -0.1393,
+                  "minY": -0.22072,
+                  "maxY": 0.16053,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 5,
+                "position": {
+                  "x": 0.8457,
+                  "y": 0.72,
+                  "z": -1.0485
+                },
+                "screenBounds": {
+                  "minX": -0.0225,
+                  "maxX": 0.19294,
+                  "minY": -0.06969,
+                  "maxY": 0.17925,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 4,
+                "position": {
+                  "x": 1.4156,
+                  "y": 1.0034,
+                  "z": 1.1774
+                },
+                "screenBounds": {
+                  "minX": 0.01006,
+                  "maxX": 0.30969,
+                  "minY": -0.21026,
+                  "maxY": 0.13107,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 11,
+                "position": {
+                  "x": -4.284,
+                  "y": 1.7457,
+                  "z": 1.8145
+                },
+                "screenBounds": {
+                  "minX": -0.66535,
+                  "maxX": -0.30861,
+                  "minY": -0.20152,
+                  "maxY": 0.19696,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 2,
+                "position": {
+                  "x": -3.1796,
+                  "y": 1.8947,
+                  "z": -0.2629
+                },
+                "screenBounds": {
+                  "minX": -0.47303,
+                  "maxX": -0.19938,
+                  "minY": 0.00925,
+                  "maxY": 0.25613,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 2,
+                "position": {
+                  "x": 4.0512,
+                  "y": 0.9421,
+                  "z": 1.9229
+                },
+                "screenBounds": {
+                  "minX": 0.27521,
+                  "maxX": 0.63322,
+                  "minY": -0.25407,
+                  "maxY": 0.06471,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              }
+            ]
+          }
+        },
+        {
+          "elapsed": 2370,
+          "total": 30,
+          "detail": "1  |  3  |  5  |  1  |  4  |  8  |  8",
+          "heartbeat": {
+            "last": 6005.3000000000175,
+            "maxGap": 229.39999999999418,
+            "count": 44
+          },
+          "debug": {
+            "renderer": "three-cannon",
+            "physics": "cannon-es",
+            "faceLabels": "surface-material",
+            "numberedFaces": 84,
+            "separateNumberObjects": 0,
+            "physicsBodies": 7,
+            "physicsSteps": 155,
+            "containmentCorrections": 9,
+            "cameraDistance": 27.5269,
+            "rollLifecycle": "completed",
+            "lastRollDuration": 2222.5,
+            "activeRoll": false,
+            "cache": {
+              "faceMaps": 12,
+              "dieTemplates": 2,
+              "materialTemplates": 22
+            },
+            "allDiceInsideViewport": true,
+            "maxViewportOverflow": 0,
+            "topFaces": "1,3,5,1,4,8,8",
+            "dice": [
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 1,
+                "position": {
+                  "x": -1.1252,
+                  "y": 0.8581,
+                  "z": -1.5621
+                },
+                "screenBounds": {
+                  "minX": -0.23936,
+                  "maxX": 0.02934,
+                  "minY": -0.06417,
+                  "maxY": 0.25426,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 3,
+                "position": {
+                  "x": 4.0961,
+                  "y": 0.942,
+                  "z": -0.6672
+                },
+                "screenBounds": {
+                  "minX": 0.26476,
+                  "maxX": 0.54713,
+                  "minY": -0.12167,
+                  "maxY": 0.23396,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 5,
+                "position": {
+                  "x": 1.9755,
+                  "y": 0.72,
+                  "z": -2.1693
+                },
+                "screenBounds": {
+                  "minX": 0.09382,
+                  "maxX": 0.28163,
+                  "minY": -0.00342,
+                  "maxY": 0.22365,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 1,
+                "position": {
+                  "x": 2.5825,
+                  "y": 0.8929,
+                  "z": 2.23
+                },
+                "screenBounds": {
+                  "minX": 0.11145,
+                  "maxX": 0.44738,
+                  "minY": -0.30638,
+                  "maxY": 0.07543,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 4,
+                "position": {
+                  "x": -2.4127,
+                  "y": 0.8264,
+                  "z": 0.4512
+                },
+                "screenBounds": {
+                  "minX": -0.39047,
+                  "maxX": -0.10198,
+                  "minY": -0.19984,
+                  "maxY": 0.16697,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 8,
+                "position": {
+                  "x": -0.428,
+                  "y": 0.7714,
+                  "z": 1.6523
+                },
+                "screenBounds": {
+                  "minX": -0.15898,
+                  "maxX": 0.06794,
+                  "minY": -0.23034,
+                  "maxY": 0.04361,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 8,
+                "position": {
+                  "x": 0.4706,
+                  "y": 0.8552,
+                  "z": -0.136
+                },
+                "screenBounds": {
+                  "minX": -0.12104,
+                  "maxX": 0.21315,
+                  "minY": -0.14054,
+                  "maxY": 0.18319,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              }
+            ]
+          }
+        },
+        {
+          "elapsed": 4608,
+          "total": 52,
+          "detail": "12 + 10  |  6  |  1  |  3  |  2  |  9  |  9",
+          "heartbeat": {
+            "last": 10605.200000000012,
+            "maxGap": 238,
+            "count": 89
+          },
+          "debug": {
+            "renderer": "three-cannon",
+            "physics": "cannon-es",
+            "faceLabels": "surface-material",
+            "numberedFaces": 96,
+            "separateNumberObjects": 0,
+            "physicsBodies": 8,
+            "physicsSteps": 302,
+            "containmentCorrections": 45,
+            "cameraDistance": 27.5269,
+            "rollLifecycle": "completed",
+            "lastRollDuration": 4466.5,
+            "activeRoll": false,
+            "cache": {
+              "faceMaps": 12,
+              "dieTemplates": 2,
+              "materialTemplates": 22
+            },
+            "allDiceInsideViewport": true,
+            "maxViewportOverflow": 0,
+            "topFaces": "12,6,1,3,2,9,9,10",
+            "dice": [
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 12,
+                "position": {
+                  "x": -0.2961,
+                  "y": 0.928,
+                  "z": -0.468
+                },
+                "screenBounds": {
+                  "minX": -0.17778,
+                  "maxX": 0.1258,
+                  "minY": -0.10859,
+                  "maxY": 0.19916,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 6,
+                "position": {
+                  "x": 3.6512,
+                  "y": 0.8777,
+                  "z": -1.6549
+                },
+                "screenBounds": {
+                  "minX": 0.21866,
+                  "maxX": 0.49592,
+                  "minY": -0.06885,
+                  "maxY": 0.26783,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 1,
+                "position": {
+                  "x": 3.6026,
+                  "y": 0.784,
+                  "z": 2.2867
+                },
+                "screenBounds": {
+                  "minX": 0.26493,
+                  "maxX": 0.53154,
+                  "minY": -0.27484,
+                  "maxY": 0.01519,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 3,
+                "position": {
+                  "x": 1.5558,
+                  "y": 0.9234,
+                  "z": -0.1033
+                },
+                "screenBounds": {
+                  "minX": 0.03148,
+                  "maxX": 0.2829,
+                  "minY": -0.13671,
+                  "maxY": 0.19084,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 2,
+                "position": {
+                  "x": -2.5741,
+                  "y": 0.8602,
+                  "z": 0.7868
+                },
+                "screenBounds": {
+                  "minX": -0.43448,
+                  "maxX": -0.10001,
+                  "minY": -0.18612,
+                  "maxY": 0.12808,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 10,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 9,
+                "position": {
+                  "x": -3.1591,
+                  "y": 0.7596,
+                  "z": -0.9972
+                },
+                "screenBounds": {
+                  "minX": -0.4181,
+                  "maxX": -0.20113,
+                  "minY": -0.04941,
+                  "maxY": 0.16652,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 9,
+                "position": {
+                  "x": 3.4512,
+                  "y": 0.8674,
+                  "z": 0.4923
+                },
+                "screenBounds": {
+                  "minX": 0.18434,
+                  "maxX": 0.53419,
+                  "minY": -0.18614,
+                  "maxY": 0.16026,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              },
+              {
+                "sides": 12,
+                "numberedFaces": 12,
+                "numeralsInSurfaceMaterial": true,
+                "separateNumberObjects": 0,
+                "hasBody": true,
+                "bodyType": 2,
+                "sleeping": true,
+                "speed": 0,
+                "angularSpeed": 0,
+                "upwardFace": 10,
+                "position": {
+                  "x": 3.9649,
+                  "y": 0.9334,
+                  "z": 1.0064
+                },
+                "screenBounds": {
+                  "minX": 0.28588,
+                  "maxX": 0.55613,
+                  "minY": -0.16415,
+                  "maxY": 0.10007,
+                  "overflow": 0,
+                  "inside": true
+                },
+                "insideViewport": true
+              }
+            ]
+          }
+        }
+      ],
+      "errors": []
+    }
+  },
+  "recorded_at": "2026-08-21T01:57:20.063279+00:00"
+}
